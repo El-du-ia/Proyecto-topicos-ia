@@ -41,7 +41,7 @@ sudo ./cai_env_sexo/bin/python main.py
 ```
 
 **Explicación:**
-Cuando ejecutas `sudo python`, se usa el Python del sistema (root) que NO tiene instaladas las dependencias (CAI, Scapy, etc.). Los scripts `run_as_root.sh` y `run.sh` resuelven esto automáticamente usando el Python del entorno virtual.
+Cuando ejecutas `sudo python`, se usa el Python del sistema (root) que NO tiene instaladas las dependencias (CAI, Scapy, etc.). Ejecutar `sudo ./cai_env_sexo/bin/python main.py` resuelven esto automáticamente usando el Python del entorno virtual.
 
 ## 🚀 Instalación
 
@@ -58,7 +58,9 @@ source TAI_env/bin/activate
 
 3. **Instalar dependencias adicionales (si es necesario):**
 
-se usa uv como instalador de paqutes mas rapido que pip 
+**Explicación:**
+    Se usa uv como instalador de paquetes mas rapido que pip y menos tardado en la instalacion de dependencias
+
 ```bash
  pip install uv
 ```
@@ -84,10 +86,10 @@ CAI_MODEL="gemini/gemini-2.5-flash"
 ### Ejecución Básica
 
 ```bash
-# Sin privilegios especiales
+# Sin privilegios especiales (no recomendado)
 python main.py
 
-# Con privilegios sudo (para captura de red)
+# Con privilegios sudo (para probar todo su potencial)
 sudo ./TAI_env/bin/python main.py
 ```
 
