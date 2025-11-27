@@ -1,0 +1,35 @@
+Captura de Red - Interfaz: wlan0
+==================================================
+Total de paquetes: 30
+==================================================
+
+Ether / IP / TCP 51.104.15.253:https > 192.168.100.7:41440 A / Raw
+Ether / IP / TCP 192.168.100.7:41440 > 51.104.15.253:https A
+Ether / IP / TCP 51.104.15.253:https > 192.168.100.7:41440 PA / Raw
+Ether / IP / TCP 192.168.100.7:41440 > 51.104.15.253:https A
+Ether / IP / UDP / DNS Qry b'westus-0.in.applicationinsights.azure.com.'
+Ether / IP / UDP / DNS Qry b'westus-0.in.applicationinsights.azure.com.'
+Ether / IP / TCP 192.168.100.7:41440 > 51.104.15.253:https A / Raw
+Ether / IP / TCP 192.168.100.7:41440 > 51.104.15.253:https PA / Raw
+Ether / IP / UDP / DNS Ans b'westus-0.in.ai.monitor.azure.com.'
+Ether / IP / UDP / DNS Ans b'westus-0.in.ai.monitor.azure.com.'
+Ether / IP / TCP 192.168.100.7:58510 > 20.189.172.73:https S
+Ether / IP / TCP 192.168.100.7:45954 > 169.254.169.254:http S
+Ether / IP / TCP 20.189.172.73:https > 192.168.100.7:58510 SA
+Ether / IP / TCP 192.168.100.7:58510 > 20.189.172.73:https A
+Ether / IP / TCP 192.168.100.7:58510 > 20.189.172.73:https PA / Raw
+Ether / IP / TCP 192.168.100.7:41440 > 51.104.15.253:https PA / Raw
+Ether / IP / TCP 51.104.15.253:https > 192.168.100.7:41440 A
+Ether / IP / TCP 51.104.15.253:https > 192.168.100.7:41440 PA / Raw
+Ether / IP / TCP 51.104.15.253:https > 192.168.100.7:41440 FPA / Raw
+Ether / IP / TCP 20.189.172.73:https > 192.168.100.7:58510 PA / Raw
+Ether / IP / TCP 192.168.100.7:58510 > 20.189.172.73:https A
+Ether / IP / TCP 192.168.100.7:41440 > 51.104.15.253:https A
+Ether / IP / TCP 192.168.100.7:41440 > 51.104.15.253:https PA / Raw
+Ether / IP / TCP 192.168.100.7:58510 > 20.189.172.73:https PA / Raw
+Ether / IP / TCP 192.168.100.7:41440 > 51.104.15.253:https FA
+Ether / IP / TCP 20.189.172.73:https > 192.168.100.7:58510 A / Raw
+Ether / IP / TCP 20.189.172.73:https > 192.168.100.7:58510 PA / Raw
+Ether / IP / TCP 192.168.100.7:58510 > 20.189.172.73:https A
+Ether / IP / TCP 192.168.100.7:58510 > 20.189.172.73:https PA / Raw
+Ether / IP / TCP 192.168.100.7:58510 > 20.189.172.73:https PA / Raw

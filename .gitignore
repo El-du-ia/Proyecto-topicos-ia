@@ -1,1 +1,5 @@
-test.py
+__pycache__/
+TAI_env/
+.env
+.vscode/
+logs/*

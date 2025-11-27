@@ -1,0 +1,15 @@
+Captura de Red - Interfaz: wlan0
+==================================================
+Total de paquetes: 10
+==================================================
+
+Ether / ARP who has 10.10.232.255 says 10.10.255.250 / Padding
+Ether / ARP is at 70:66:55:08:fa:c5 says 10.10.232.255
+Ether / IP / UDP / DNS Qry b'google.com.'
+Ether / IP / UDP / DNS Qry b'google.com.'
+Ether / IP / TCP 104.18.39.21:https > 10.10.232.255:49488 PA / Raw
+Ether / IP / UDP / DNS Ans 142.250.72.238
+Ether / IP / TCP 10.10.232.255:49488 > 104.18.39.21:https PA / Raw
+Ether / IP / TCP 104.18.39.21:https > 10.10.232.255:49488 A
+Ether / IP / UDP / DNS Ans 2607:f8b0:4007:816::200e
+Ether / IP / ICMP 10.10.232.255 > 142.250.72.238 echo-request 0 / Raw
