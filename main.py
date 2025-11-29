@@ -26,7 +26,8 @@ from src.core.interpreter import ResultInterpreter
 from src.core.permissions import PermissionChecker
 from src.ui.cli_interface import CLI
 from src.ui.prompts import UserPrompts
-from src.ui.custom_terminal import run_custom_cai_terminal, create_cybersecurity_commands
+from src.ui.custom_terminal import run_custom_cai_terminal
+from src.ui.terminal_commands import create_cybersecurity_commands
 from src.models.conversation_memory import ConversationMemory
 
 # Importar herramientas personalizadas

@@ -345,10 +345,3 @@ python main.py
 "Muestra todas las herramientas disponibles"
 ```
 
----
-
-**Recuerda**: Este es un sistema educativo. Úsalo solo en redes y sistemas autorizados.
-
-¿Preguntas? Revisa README.md o docs/architecture.md para más información.
-
-¡Buena suerte con tu agente de ciberseguridad! 🛡️🔐

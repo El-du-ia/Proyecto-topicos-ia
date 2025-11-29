@@ -22,6 +22,12 @@ Sistema de ciberseguridad basado en CAI (Cybersecurity AI) que permite ejecutar 
 
 - **Memoria de Sesión**: Guarda el contexto de conversaciones
 
+- **Gestión de Sesiones Persistentes**: Reanuda conversaciones desde donde las dejaste
+  - Lista todas las sesiones guardadas
+  - Carga el contexto completo de conversaciones anteriores
+  - Busca sesiones por contenido
+  - Mantiene el historial entre ejecuciones
+
 ## 📋 Requisitos
 
 - Python 3.8+
@@ -37,7 +43,7 @@ sudo python main.py  # Usará el Python del sistema, sin dependencias
 
 **✅ Haz esto:**
 ```bash
-sudo ./cai_env_sexo/bin/python main.py
+sudo ./[nombre_entorno_virtual]/bin/python main.py
 ```
 
 **Explicación:**
@@ -50,13 +56,25 @@ Cuando ejecutas `sudo python`, se usa el Python del sistema (root) que NO tiene 
 cd /home/kali/topicos_IA
 ```
 
-2. **Crear y activar entorno virtual (si no existe):**
 ```bash
-python -m venv TAI_env
-source TAI_env/bin/activate
+git clone https://github.com/El-du-ia/Proyecto-topicos-ia.git
 ```
 
-3. **Instalar dependencias adicionales (si es necesario):**
+2. **Crear y activar entorno virtual (si no existe):**
+
+Crea el entorno:
+```bash
+python -m venv TAI_env
+
+```
+
+Activa el entorno:
+```bash
+source TAI_env/bin/activate
+
+```
+
+3. **Instalar dependencias:**
 
 **Explicación:**
     Se usa uv como instalador de paquetes mas rapido que pip y menos tardado en la instalacion de dependencias
@@ -66,7 +84,7 @@ source TAI_env/bin/activate
 ```
 
 ```bash
- uv pip install cai-framework
+ uv pip install cai-framework && pip install scapy
 ```
 
 4. **Configurar variables de entorno:**
@@ -104,6 +122,29 @@ Al ejecutar, verás un menú con opciones:
 5. **Ayuda** - Documentación y ejemplos
 6. **Salir** - Cerrar el programa
 
+### Comandos Especiales en el Terminal
+
+Durante el chat interactivo, puedes usar estos comandos:
+
+**Gestión de Sesiones:**
+- `/sessions` - Listar todas las sesiones guardadas
+- `/load <id>` - Reanudar una sesión anterior
+- `/search <texto>` - Buscar sesiones por contenido
+- `/history` - Ver historial de la sesión actual
+- `/info` - Información detallada de la sesión actual
+
+**Información:**
+- `/help` - Mostrar ayuda completa
+- `/tools` - Listar herramientas disponibles
+- `/examples` - Ver ejemplos de uso
+- `/status` - Estado del sistema
+- `/permisos` - Ver permisos del sistema
+- `/cost` - Ver costos de API
+
+**Otros:**
+- `/clear` - Limpiar pantalla
+- `/exit` o `/quit` - Salir
+
 ### Ejemplos de Uso
 
 ```bash
@@ -115,6 +156,21 @@ Al ejecutar, verás un menú con opciones:
 "Analiza el log /var/log/auth.log buscando errores"
 "Muestra las últimas 50 líneas de /var/log/syslog"
 ```
+
+### Reanudar Conversaciones Anteriores
+
+```bash
+# Listar sesiones guardadas
+🤖 dui-IA > /sessions
+
+# Cargar una sesión específica
+🤖 dui-IA > /load 0a28b9e5
+
+# El agente recordará toda la conversación anterior
+🤖 dui-IA > continúa con el análisis de red que estábamos haciendo
+```
+
+Ver documentación completa: [docs/GESTION_SESIONES.md](docs/GESTION_SESIONES.md)
 
 ## 🛠️ Herramientas Disponibles
 
@@ -138,6 +194,7 @@ Al ejecutar, verás un menú con opciones:
 topicos_Ia_sexo/
 ├── main.py                    # Punto de entrada
 ├── toolTest.py               # Versión original (referencia)
+├── demo_sessions.py          # Demo de gestión de sesiones
 ├── requirements.txt          # Dependencias
 ├── .env                      # Configuración (API keys)
 │
@@ -145,7 +202,8 @@ topicos_Ia_sexo/
 │   ├── core/
 │   │   ├── agent_controller.py    # Controlador principal
 │   │   ├── tool_manager.py        # Gestor de herramientas
-│   │   └── interpreter.py         # Traductor de resultados
+│   │   ├── interpreter.py         # Traductor de resultados
+│   │   └── permissions.py         # Gestión de permisos
 │   │
 │   ├── tools/
 │   │   ├── cai_tools_wrapper.py   # Herramientas CAI
@@ -155,15 +213,23 @@ topicos_Ia_sexo/
 │   │
 │   ├── ui/
 │   │   ├── cli_interface.py       # Interfaz de terminal
+│   │   ├── custom_terminal.py     # Terminal personalizada (coordinador)
+│   │   ├── terminal_display.py    # Funciones de visualización
+│   │   ├── terminal_commands.py   # Manejador de comandos
+│   │   ├── session_commands.py    # Comandos de gestión de sesiones
 │   │   └── prompts.py             # Mensajes amigables
 │   │
 │   └── models/
-│       └── conversation_memory.py # Memoria de sesión
+│       ├── conversation_memory.py # Memoria de sesión
+│       └── session_manager.py     # Gestión de sesiones persistentes
 │
-├── logs/                     # Logs de sesiones
+├── logs/                     # Logs de sesiones (JSONL)
 ├── reports/                  # Reportes generados (futuro)
-├── memory/                   # Memoria persistente
+├── memory/                   # Memoria persistente de conversaciones
 └── docs/                     # Documentación adicional
+    ├── GESTION_SESIONES.md   # Guía de gestión de sesiones
+    ├── PERMISOS.md           # Documentación de permisos
+    └── architecture.md       # Arquitectura del sistema
 ```
 
 ## 🔒 Seguridad y Permisos
@@ -180,21 +246,23 @@ topicos_Ia_sexo/
 ## 📊 Logs y Reportes
 
 ### Logs de Sesión
-Ubicación: `logs/session_YYYYMMDD_HHMMSS.json`
+Ubicación: `logs/cai_*.jsonl` (formato JSONL)
 
 Contiene:
 - Todas las acciones ejecutadas
 - Aprobaciones/rechazos del usuario
 - Herramientas utilizadas
 - Timestamps de cada operación
+- Uso de tokens y costos de API
 
 ### Memoria Conversacional
-Ubicación: `memory/session_YYYYMMDD_HHMMSS_memory.json`
+Ubicación: `memory/{session_id}_memory.json`
 
 Guarda:
-- Historial de mensajes
+- Historial completo de mensajes
 - Contexto de la conversación
 - Metadatos de sesión
+- Puede ser recargado para reanudar conversaciones
 
 
 #### El agente no responde
@@ -213,11 +281,20 @@ Guarda:
 - Intérprete básico de resultados
 - CLI funcional
 
-### 📅 Fase 2 - Reportes (Próximo)
+###  Fase 2 - Reportes (Próximo)
+
+#### ✅ Fase 2.1 Sistema de sesiones persistentes**
+  - Guardar y cargar conversaciones completas
+  - Búsqueda de sesiones por contenido
+  - Reanudar desde donde se quedó
+
+#### Fase 2.2
+- Conexion con AWS para almacenaminto.
 - Generación automática de reportes
 - Exportación a PDF/Markdown
-- Templates personalizables
 - Resumen ejecutivo
+- Templates personalizablesvo
+- Templates personalizables
 
 ### 📅 Fase 3 - UX Mejorada
 - CLI con rich (colores avanzados)
@@ -225,7 +302,7 @@ Guarda:
 - Memoria persistente entre sesiones
 - Sugerencias inteligentes
 
-### 📅 Fase 4 - Características Avanzadas
+### 📅 Fase 4 - Características Avanzadas (futuro)
 - Múltiples agentes especializados
 - Integración con APIs externas (VirusTotal, Shodan)
 - Dashboard web (FastAPI)
@@ -269,6 +346,7 @@ Proyecto educativo - Universidad/Institución
 ## 👤 Autor
 
 El dui y el malcom tambien el break dance y tambien el manuelangas
+El dui-IA Team
 
 ## 🙏 Agradecimientos
 
