@@ -46,22 +46,22 @@ Sistema de terminal personalizada modular que extiende CAI Framework, proporcion
 
 ## 📁 Estructura de Archivos
 
-### `custom_terminal.py` (177 líneas)
+### `custom_terminal.py`
 **Responsabilidad**: Coordinación principal y loop de ejecución
 
 
 
-### `terminal_display.py` (197 líneas)
+### `terminal_display.py` 
 **Responsabilidad**: Todas las funciones de visualización
 
 
 
-### `terminal_commands.py` (162 líneas)
+### `terminal_commands.py`
 **Responsabilidad**: Routing y procesamiento de comandos
 
 
 
-### `session_commands.py` (198 líneas)
+### `session_commands.py`
 **Responsabilidad**: Gestión completa de sesiones
 
 ---

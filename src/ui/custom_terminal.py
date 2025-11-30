@@ -66,33 +66,45 @@ class CustomCAITerminal:
             print()  # Nueva línea
             return None
     
+    def _sync_history_from_agent(self):
+        """Sincroniza conversation_history desde agent.model.message_history para mantener consistencia"""
+        try:
+            if hasattr(self.agent, 'model') and hasattr(self.agent.model, 'message_history'):
+                # Actualizar nuestro historial local con el del agente (es la fuente de verdad)
+                agent_history = self.agent.model.message_history
+                
+                # Solo sincronizar si hay diferencia de longitud
+                if len(agent_history) != len(self.session_commands.conversation_history):
+                    self.session_commands.conversation_history = [
+                        {
+                            'role': msg.get('role', 'unknown'),
+                            'content': msg.get('content', ''),
+                            'timestamp': msg.get('timestamp', datetime.now().isoformat())
+                        }
+                        for msg in agent_history
+                        if msg.get('role') in ['user', 'assistant']  # Solo user y assistant, no tool messages
+                    ]
+        except Exception as e:
+            # Fallar silenciosamente para no interrumpir el flujo
+            pass
+    
     
     def run_agent_query(self, query: str):
-        """Ejecuta una consulta en el agente de CAI con contexto histórico"""
+        """Ejecuta una consulta en el agente de CAI (el historial ya está en agent.model.message_history)"""
         try:
-            # Agregar el nuevo mensaje del usuario al historial
+            # Agregar el nuevo mensaje del usuario a nuestro tracking local
             self.session_commands.add_user_message(query)
             
-            # Ejecutar query usando Runner con historial completo
             print()  # Línea en blanco antes de la respuesta
             
-            # Construir los mensajes incluyendo el historial
-            messages_for_cai = []
-            
-            # Agregar historial previo (si hay sesión cargada)
-            if len(self.session_commands.conversation_history) > 1:
-                for msg in self.session_commands.conversation_history[:-1]:  # Todos excepto el último (que es el actual)
-                    messages_for_cai.append({
-                        'role': msg['role'],
-                        'content': msg['content']
-                    })
-            
-            # El último mensaje (actual) lo pasa directamente como input
+            # NOTA: No necesitamos pasar el historial completo aquí.
+            # El agente ya tiene el historial en agent.model.message_history.
+            # Runner.run_sync() automáticamente añade el nuevo mensaje al historial interno.
             response = Runner.run_sync(
                 starting_agent=self.agent,
                 input=query,
                 context=self.context_variables,
-                max_turns=20  # Permitir múltiples turnos para tool calls
+                max_turns=20
             )
             
             # Extraer contenido de la respuesta
@@ -109,8 +121,11 @@ class CustomCAITerminal:
             elif hasattr(response, 'output') and response.output:
                 assistant_response = response.output
             
-            # Agregar respuesta del asistente al historial
+            # Agregar respuesta del asistente a nuestro tracking local
             self.session_commands.add_assistant_message(assistant_response)
+            
+            # Sincronizar nuestro historial local con el del agente para mantener consistencia
+            self._sync_history_from_agent()
             
             print()  # Línea en blanco después de la respuesta
             

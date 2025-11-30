@@ -23,7 +23,7 @@ class SessionCommands:
         self.turn_count: int = 0
     
     def load_session_context(self, session_id: str) -> bool:
-        """Carga el contexto de una sesión anterior"""
+        """Carga el contexto de una sesión anterior y REUTILIZA su session_id en CAI"""
         print(f"\n🔄 Cargando sesión: {session_id}...")
         
         session_data = self.session_manager.load_session(session_id)
@@ -32,14 +32,93 @@ class SessionCommands:
             CLI.print_error(f"No se pudo cargar la sesión: {session_id}")
             return False
         
-        # Cargar mensajes en el historial
+        # Cargar mensajes en el historial local
         self.conversation_history = session_data.get('messages', [])
+        
+        # IMPORTANTE: Cambiar el session_id de CAI para reutilizar la sesión
+        self._reuse_cai_session(session_id, session_data['session_info']['filepath'])
+        
+        # Inyectar el historial en el modelo del agente
+        self._inject_history_to_agent()
         
         CLI.print_success(f"✓ Sesión cargada: {len(self.conversation_history)} mensajes")
         print(f"📅 Creada: {session_data['session_info']['start_time']}")
         print(f"📝 Último mensaje: {session_data['session_info']['last_activity']}")
         print()
         return True
+    
+    def _reuse_cai_session(self, session_id: str, log_filepath: str):
+        """Reutiliza una sesión existente de CAI cambiando el session_id del recorder"""
+        try:
+            from cai.cli import get_session_recorder
+            import re
+            
+            # Obtener el recorder global de CAI (es un singleton)
+            recorder = get_session_recorder()
+            
+            # Intentar extraer el UUID completo del filename
+            full_session_id = session_id  # Fallback al session_id pasado
+            
+            if log_filepath and os.path.exists(log_filepath):
+                filename = os.path.basename(log_filepath)
+                # Buscar UUID en el formato: cai_{UUID}_...
+                # UUID tiene formato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                uuid_pattern = r'cai_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_'
+                match = re.search(uuid_pattern, filename)
+                
+                if match:
+                    full_session_id = match.group(1)
+                else:
+                    # Fallback: intentar split por _ (método anterior)
+                    parts = filename.replace('.jsonl', '').split('_')
+                    if len(parts) >= 2 and len(parts[1]) > 8:
+                        full_session_id = parts[1]
+            
+            # Validar que el session_id parece un UUID
+            if len(full_session_id) < 8:
+                print(f"⚠️  Session ID parece inválido: {full_session_id}")
+                print(f"    Continuando de todos modos...\n")
+            
+            # Cambiar el session_id del recorder
+            recorder.session_id = full_session_id
+            
+            # Actualizar el filename para que apunte al archivo correcto
+            if log_filepath and os.path.exists(log_filepath):
+                recorder.filename = log_filepath
+            
+            print(f"💾 Session ID de CAI actualizado: {full_session_id[:16]}...")
+            print(f"📝 Los nuevos mensajes se guardarán en: {log_filepath}\n")
+            
+        except Exception as e:
+            print(f"⚠️  Advertencia: No se pudo cambiar el session_id de CAI: {e}")
+            print(f"    Los nuevos mensajes se guardarán en una sesión nueva\n")
+            import traceback
+            if os.getenv('DEBUG'):
+                traceback.print_exc()
+    
+    def _inject_history_to_agent(self):
+        """Inyecta el historial de conversación directamente en el modelo del agente"""
+        if not self.conversation_history:
+            return
+        
+        # Limpiar el historial actual del agente
+        if hasattr(self.agent, 'model') and hasattr(self.agent.model, 'message_history'):
+            self.agent.model.message_history.clear()
+            
+            # Inyectar cada mensaje del historial cargado
+            for msg in self.conversation_history:
+                # Saltar mensajes sin contenido válido
+                content = msg.get('content')
+                if content is None:
+                    continue
+                    
+                message_entry = {
+                    'role': msg['role'],
+                    'content': content
+                }
+                self.agent.model.add_to_message_history(message_entry)
+            
+            print(f"💉 Historial inyectado al modelo del agente: {len(self.conversation_history)} mensajes")
     
     def display_sessions(self):
         """Muestra lista de sesiones guardadas"""
@@ -67,8 +146,32 @@ class SessionCommands:
                 print("-" * 70)
                 for i, msg in enumerate(self.conversation_history[-5:], 1):  # Últimos 5 mensajes
                     role = "👤 Usuario" if msg['role'] == 'user' else "🤖 Asistente"
-                    content = msg['content'][:80] + "..." if len(msg['content']) > 80 else msg['content']
-                    print(f"{role}: {content}")
+                    
+                    # Manejar content que puede ser None (mensajes con solo tool calls)
+                    content = msg.get('content')
+                    
+                    if content:
+                        # Tiene texto: mostrar truncado
+                        content_display = content[:80] + "..." if len(content) > 80 else content
+                    else:
+                        # No tiene texto: intentar mostrar info de tool_calls
+                        tool_calls = msg.get('tool_calls', [])
+                        if tool_calls:
+                            # Extraer nombres de herramientas
+                            tool_names = []
+                            for tc in tool_calls:
+                                if isinstance(tc, dict):
+                                    func_name = tc.get('function', {}).get('name', 'unknown')
+                                    tool_names.append(func_name)
+                            
+                            if tool_names:
+                                content_display = f"[🔧 Ejecutó: {', '.join(tool_names)}]"
+                            else:
+                                content_display = "[🔧 Ejecutó herramientas]"
+                        else:
+                            content_display = "[Sin contenido]"
+                    
+                    print(f"{role}: {content_display}")
                 print("-" * 70)
                 print("✅ Puedes continuar la conversación desde donde la dejaste\n")
     
@@ -103,10 +206,26 @@ class SessionCommands:
             role_emoji = "👤" if msg['role'] == 'user' else "🤖"
             role_name = "Usuario" if msg['role'] == 'user' else "Asistente"
             timestamp = msg.get('timestamp', 'unknown')
-            content = msg['content']
+            
+            # Manejar content que puede ser None
+            content = msg.get('content')
+            if content:
+                content_display = content
+            else:
+                # Intentar extraer info de tool_calls
+                tool_calls = msg.get('tool_calls', [])
+                if tool_calls:
+                    tool_names = []
+                    for tc in tool_calls:
+                        if isinstance(tc, dict):
+                            func_name = tc.get('function', {}).get('name', 'unknown')
+                            tool_names.append(func_name)
+                    content_display = f"[🔧 Ejecutó herramientas: {', '.join(tool_names)}]"
+                else:
+                    content_display = "[Sin contenido de texto]"
             
             print(f"{role_emoji} [{i}] {role_name} ({timestamp}):")
-            print(f"   {content}\n")
+            print(f"   {content_display}\n")
         
         print("="*70 + "\n")
     
