@@ -4,8 +4,6 @@ import os
 from datetime import datetime
 from cai.sdk.agents import function_tool
 
-# Se asume que tienes un módulo de CLI para imprimir mensajes con estilo
-# Ajusta la importación según tu estructura real si es necesario.
 try:
     from src.ui.cli_interface import CLI 
 except ImportError:
