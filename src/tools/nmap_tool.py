@@ -7,6 +7,9 @@ import subprocess
 import re
 from ..core.permissions import PermissionChecker
 
+# Marcador especial para indicar al Agente que debe ofrecer un reporte
+REPORT_MARKER = "\n\n---REPORTE_REQUERIDO:NMAP_SCAN---" 
+
 
 @function_tool
 def nmap_scan_tool(target: str, scan_type: str = "basic", output_file: str = None) -> str:
@@ -14,7 +17,7 @@ def nmap_scan_tool(target: str, scan_type: str = "basic", output_file: str = Non
     Realiza un escaneo de red usando Nmap para descubrir hosts y servicios.
     
     Esta herramienta es SENSIBLE y requiere confirmación del usuario antes de ejecutarse.
-
+    
     Args:
         target: IP, rango de IPs o dominio a escanear (ej: '192.168.1.1' o '192.168.1.0/24')
         scan_type: Tipo de escaneo:
@@ -25,7 +28,8 @@ def nmap_scan_tool(target: str, scan_type: str = "basic", output_file: str = Non
         output_file: Archivo donde guardar los resultados (opcional)
         
     Returns:
-        Resultados del escaneo o mensaje de error
+        Resultados del escaneo o mensaje de error, incluyendo un marcador
+        especial para solicitar la generación de un reporte.
     """
     try:
         # Verificar que nmap está instalado
@@ -68,7 +72,7 @@ def nmap_scan_tool(target: str, scan_type: str = "basic", output_file: str = Non
         
         output = result.stdout
         
-        # Guardar en archivo si se especificó
+        # Guardar en archivo si se especificó (mantiene la funcionalidad existente)
         if output_file:
             with open(output_file, 'w') as f:
                 f.write(f"Escaneo Nmap - Tipo: {scan_type}\n")
@@ -86,7 +90,8 @@ def nmap_scan_tool(target: str, scan_type: str = "basic", output_file: str = Non
         else:
             summary = f"\n\n🎯 RESUMEN: No se encontraron puertos abiertos en {target}"
         
-        return output + summary
+        # AÑADIR EL MARCADOR AQUÍ
+        return output + summary + REPORT_MARKER 
     
     except subprocess.TimeoutExpired:
         return "❌ Error: El escaneo excedió el tiempo límite (5 minutos)"

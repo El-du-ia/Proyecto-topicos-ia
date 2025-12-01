@@ -36,6 +36,8 @@ from src.tools.nmap_tool import nmap_scan_tool, nmap_ping_sweep
 from src.tools.whois_tool import whois_lookup_tool, dns_lookup_tool, reverse_dns_lookup_tool
 from src.tools.log_analyzer_tool import analyze_log_tool, tail_log_tool
 
+from src.tools.report_generator_tool import generate_report_tool
+
 from cai.agents.network_traffic_analyzer import network_security_analyzer_agent
 from cai.cli import run_cai_cli
 
@@ -102,6 +104,12 @@ def setup_agent():
         "requires_root": False
     })
     
+    tool_manager.register_tool(generate_report_tool, {
+        "category": "utility",
+        "is_sensitive": False,
+        "requires_root": False
+    })
+
     CLI.print_step(3, 4, "Inicializando intérprete de resultados...")
     interpreter = ResultInterpreter()
     
@@ -350,6 +358,17 @@ INSTRUCCIONES ADICIONALES - Fase 1 MVP:
    - reverse_dns_lookup_tool: DNS inverso
    - analyze_log_tool: Analiza archivos de log
    - tail_log_tool: Muestra últimas líneas de log
+
+5. **GENERACIÓN AUTOMÁTICA DE REPORTES (ACTUALIZADO)**:
+   - Después de ejecutar `nmap_scan_tool`, la salida incluirá un marcador: `---REPORTE_REQUERIDO:NMAP_SCAN---`.
+   - Si detectas este marcador, haz lo siguiente:
+     a) Primero, **genera tu explicación SIMPLE y concisa (el análisis)** para el usuario.
+     b) Luego, **pregunta al usuario**: "¿Te gustaría generar un reporte TXT con el **análisis de la IA** y el resultado completo de este escaneo Nmap?"
+     c) Si el usuario confirma, **llama inmediatamente** a la herramienta `generate_report_tool`.
+     d) Los parámetros de la herramienta deben ser:
+        - `report_content_raw`: El texto completo del resultado del escaneo, **excluyendo únicamente el marcador**.
+        - `analysis_summary`: **La explicación SIMPLE que generaste en el paso (a)**.
+        - `source_tool`: "nmap_scan".
 
 RECUERDA: Tu objetivo es hacer la ciberseguridad accesible para usuarios sin conocimientos técnicos.
 """
