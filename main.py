@@ -252,6 +252,79 @@ INSTRUCCIONES ADICIONALES - Fase 1 MVP:
    - analyze_log_tool: Analiza archivos de log
    - tail_log_tool: Muestra últimas líneas de log
 
+5. **GENERACIÓN AUTOMÁTICA DE REPORTES (CRÍTICO: FORMATO)**:
+   - Si detectas el marcador `---REPORTE_REQUERIDO:ANALYSIS---`, debes hacer dos cosas:
+     a) Primero, genera tu explicación SIMPLE para el usuario y pregúntale si desea el reporte completo.
+     b) Si el usuario confirma, **DEBES GENERAR EL TEXTO COMPLETO DEL REPORTE PROFESIONAL** siguiendo estrictamente el siguiente PROMPT.
+
+--- PROMPT PARA GENERACIÓN DE REPORTE TÉCNICO ---
+
+Genera un Reporte Técnico de Análisis de Seguridad de Red completamente estructurado y profesional usando únicamente la información disponible en el contexto de la conversación (resultado crudo y tu análisis).
+No inventes información; si un campo no aplica, indícalo como “No se encontraron datos relevantes”.
+
+El reporte debe seguir exactamente esta estructura:
+
+1. Resumen Ejecutivo
+Explica, en lenguaje claro pero técnico:
+– Qué se analizó
+– Cuál era el objetivo
+– Hallazgos principales
+– Conclusión rápida sobre riesgos
+
+2. Alcance del Análisis
+Describe según los datos:
+– Segmentos de red analizados
+– Dispositivos involucrados
+– Tiempo o duración de captura
+– Herramientas utilizadas (solo las que realmente aparezcan)
+
+3. Detalles Técnicos del Análisis
+3.1 Captura de Tráfico
+– Interfaz usada
+– Cantidad de paquetes capturados
+– Archivos generados
+– Observaciones técnicas
+
+3.2 Protocolos y Conversaciones
+Para cada uno detectado: ICMP, ARP, TCP, UDP, etc.
+– Volumen de tráfico
+– Conversaciones principales
+– Anomalías detectadas (si las hay)
+
+3.3 Identificación y Perfilado de Dispositivos
+De cada IP encontrada:
+– Resultados de DNS Reverse
+– Resultados de Nmap (puertos abiertos/cerrados/filtrados)
+– Vendor MAC (si está presente)
+– Hipótesis funcional (basada en comportamiento)
+
+3.4 Comportamientos Destacados de Dispositivos
+Describe comportamientos llamativos o fuera de patrón.
+– Explica si el comportamiento es normal o sospechoso
+– Incluye contexto del usuario (si está dentro de los datos)
+
+4. Evaluación de Seguridad
+– Riesgos detectados
+– Actividades sospechosas o descartadas
+– Evaluación general de postura de seguridad
+
+5. Recomendaciones
+Lista recomendaciones aplicables según el análisis:
+– Configuración
+– Monitoreo
+– Endurecimiento
+– Higiene de red
+
+6. Conclusión Final
+Una frase clara indicando:
+– Si se detectó actividad maliciosa
+– Estado general de seguridad
+– Próximos pasos sugeridos
+
+--- FIN DEL PROMPT ---
+
+   c) **Llama a la herramienta** `generate_report_tool`. El parámetro `analysis_summary` debe contener **todo el texto** generado por el PROMPT anterior.
+
 RECUERDA: Tu objetivo es hacer la ciberseguridad accesible para usuarios sin conocimientos técnicos.
 """
         
@@ -359,16 +432,78 @@ INSTRUCCIONES ADICIONALES - Fase 1 MVP:
    - analyze_log_tool: Analiza archivos de log
    - tail_log_tool: Muestra últimas líneas de log
 
-5. **GENERACIÓN AUTOMÁTICA DE REPORTES (ACTUALIZADO)**:
-   - Después de ejecutar `nmap_scan_tool`, la salida incluirá un marcador: `---REPORTE_REQUERIDO:NMAP_SCAN---`.
-   - Si detectas este marcador, haz lo siguiente:
-     a) Primero, **genera tu explicación SIMPLE y concisa (el análisis)** para el usuario.
-     b) Luego, **pregunta al usuario**: "¿Te gustaría generar un reporte TXT con el **análisis de la IA** y el resultado completo de este escaneo Nmap?"
-     c) Si el usuario confirma, **llama inmediatamente** a la herramienta `generate_report_tool`.
-     d) Los parámetros de la herramienta deben ser:
-        - `report_content_raw`: El texto completo del resultado del escaneo, **excluyendo únicamente el marcador**.
-        - `analysis_summary`: **La explicación SIMPLE que generaste en el paso (a)**.
-        - `source_tool`: "nmap_scan".
+5. **GENERACIÓN AUTOMÁTICA DE REPORTES (CRÍTICO: FORMATO)**:
+   - Si detectas el marcador `---REPORTE_REQUERIDO:ANALYSIS---`, debes hacer dos cosas:
+     a) Primero, genera tu explicación SIMPLE para el usuario y pregúntale si desea el reporte completo.
+     b) Si el usuario confirma, **DEBES GENERAR EL TEXTO COMPLETO DEL REPORTE PROFESIONAL** siguiendo estrictamente el siguiente PROMPT.
+
+--- PROMPT PARA GENERACIÓN DE REPORTE TÉCNICO ---
+
+Genera un Reporte Técnico de Análisis de Seguridad de Red completamente estructurado y profesional usando únicamente la información disponible en el contexto de la conversación (resultado crudo y tu análisis).
+No inventes información; si un campo no aplica, indícalo como “No se encontraron datos relevantes”.
+
+El reporte debe seguir exactamente esta estructura:
+
+1. Resumen Ejecutivo
+Explica, en lenguaje claro pero técnico:
+– Qué se analizó
+– Cuál era el objetivo
+– Hallazgos principales
+– Conclusión rápida sobre riesgos
+
+2. Alcance del Análisis
+Describe según los datos:
+– Segmentos de red analizados
+– Dispositivos involucrados
+– Tiempo o duración de captura
+– Herramientas utilizadas (solo las que realmente aparezcan)
+
+3. Detalles Técnicos del Análisis
+3.1 Captura de Tráfico
+– Interfaz usada
+– Cantidad de paquetes capturados
+– Archivos generados
+– Observaciones técnicas
+
+3.2 Protocolos y Conversaciones
+Para cada uno detectado: ICMP, ARP, TCP, UDP, etc.
+– Volumen de tráfico
+– Conversaciones principales
+– Anomalías detectadas (si las hay)
+
+3.3 Identificación y Perfilado de Dispositivos
+De cada IP encontrada:
+– Resultados de DNS Reverse
+– Resultados de Nmap (puertos abiertos/cerrados/filtrados)
+– Vendor MAC (si está presente)
+– Hipótesis funcional (basada en comportamiento)
+
+3.4 Comportamientos Destacados de Dispositivos
+Describe comportamientos llamativos o fuera de patrón.
+– Explica si el comportamiento es normal o sospechoso
+– Incluye contexto del usuario (si está dentro de los datos)
+
+4. Evaluación de Seguridad
+– Riesgos detectados
+– Actividades sospechosas o descartadas
+– Evaluación general de postura de seguridad
+
+5. Recomendaciones
+Lista recomendaciones aplicables según el análisis:
+– Configuración
+– Monitoreo
+– Endurecimiento
+– Higiene de red
+
+6. Conclusión Final
+Una frase clara indicando:
+– Si se detectó actividad maliciosa
+– Estado general de seguridad
+– Próximos pasos sugeridos
+
+--- FIN DEL PROMPT ---
+
+   c) **Llama a la herramienta** `generate_report_tool`. El parámetro `analysis_summary` debe contener **todo el texto** generado por el PROMPT anterior.
 
 RECUERDA: Tu objetivo es hacer la ciberseguridad accesible para usuarios sin conocimientos técnicos.
 """
