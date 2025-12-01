@@ -71,7 +71,7 @@ Has creado exitosamente un **Agente Inteligente de Ciberseguridad** completo con
 ### 1. Verificar Instalación
 
 ```bash
-cd /home/kali/topicos_Ia_sexo
+cd /home/kali/topicos_Ia
 python verify_setup.py
 ```
 
@@ -174,7 +174,7 @@ pueden indicar un ataque de fuerza bruta.
 
 ```bash
 # Ver estructura del proyecto
-tree -L 3 -I '__pycache__|*.pyc|cai_env_sexo'
+tree -L 3 -I '__pycache__|*.pyc|cai_env'
 
 # Ver logs de sesiones
 ls -lh logs/
@@ -215,7 +215,7 @@ sudo apt install nmap
 
 ```bash
 # Activar entorno virtual
-source cai_env_sexo/bin/activate
+source cai_env/bin/activate
 
 # Reinstalar dependencias
 pip install -r requirements.txt

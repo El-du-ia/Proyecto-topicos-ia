@@ -47,7 +47,7 @@ sudo ./[nombre_entorno_virtual]/bin/python main.py
 ```
 
 **Explicación:**
-Cuando ejecutas `sudo python`, se usa el Python del sistema (root) que NO tiene instaladas las dependencias (CAI, Scapy, etc.). Ejecutar `sudo ./cai_env_sexo/bin/python main.py` resuelven esto automáticamente usando el Python del entorno virtual.
+Cuando ejecutas `sudo python`, se usa el Python del sistema (root) que NO tiene instaladas las dependencias (CAI, Scapy, etc.). Ejecutar `sudo ./[nombre_entorno_virtual]/bin/python main.py` resuelven esto automáticamente usando el Python del entorno virtual.
 
 ## 🚀 Instalación
 
@@ -191,7 +191,7 @@ Ver documentación completa: [docs/GESTION_SESIONES.md](docs/GESTION_SESIONES.md
 ## 📁 Estructura del Proyecto
 
 ```
-topicos_Ia_sexo/
+topicos_Ia/
 ├── main.py                    # Punto de entrada
 ├── toolTest.py               # Versión original (referencia)
 ├── demo_sessions.py          # Demo de gestión de sesiones
