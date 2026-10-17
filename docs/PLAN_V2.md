@@ -113,6 +113,7 @@ Al retomar en Windows: si `uv sync` falla con "El proceso no tiene acceso al arc
       el modelo también deja de usar emojis (niveles de riesgo `[ALTO]`, `[BAJO]`...)
 - [x] Autocompletado de comandos con su descripción, alias incluidos
 - [x] Ayuda agrupada (General / Sesiones) con atajos de teclado
+- [x] Pantalla de inicio con logo "DUI-IA" en letras grandes (bloques o ASCII) y panel de información
 - [x] Terminal dividida en módulos: `terminal.py`, `hooks.py`, `commands.py`, `symbols.py`
 - [ ] Mejoras de usabilidad a partir de pruebas con usuarios reales
 

@@ -14,12 +14,14 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from .. import __version__
 from ..agent import Agent, LLMClient, Runner, ToolContext, Usage
 from ..agent.context import select_context
 from ..compat import elevation_hint
 from ..errors import LLMError, ToolError
 from ..security import AuditLog
 from ..storage import Session, SessionNotFound, SessionStore, audit_detail, new_session_id
+from .banner import render_banner
 from .commands import COMMAND_GROUPS, CommandCompleter, canonical
 from .hooks import YES, TerminalHooks, answer_panel, format_args
 from .symbols import symbols
@@ -65,6 +67,7 @@ class Terminal:
         self.store = store or audit.store or SessionStore(":memory:")
         self._listing: list[Session] = []  # última lista mostrada, para '/load 2'
         self.console = console or Console()
+        self.plain = plain
         self.sym = symbols(plain)
         if streaming is None:
             # Con la salida redirigida a un archivo no tiene sentido redibujar en vivo.
@@ -440,20 +443,35 @@ class Terminal:
     def show_banner(self) -> None:
         system = self.context.system
         sep = self.sym["sep"]
-        info = Table.grid(padding=(0, 1))
-        info.add_row("[bold]Modelo:[/]", self.llm.model)
-        info.add_row(
-            "[bold]Sistema:[/]", f"{system.os_label} {system.os_version} {sep} usuario {system.user}"
+        tools = list(self.agent.tools)
+        available = sum(1 for t in tools if t.availability().ok)
+        saved = self._saved(self.session_id)
+        privileges = (
+            "[green]administrador/root[/]"
+            if system.admin
+            else "[yellow]usuario normal[/] [dim](algunas herramientas piden más permisos)[/]"
         )
-        privileges = "[green]administrador/root[/]" if system.admin else "[yellow]usuario normal[/]"
-        info.add_row("[bold]Privilegios:[/]", privileges)
-        info.add_row("[bold]Alcance:[/]", self.context.scope.describe())
+        info = [
+            ("Modelo", f"[bold]{self.llm.model}[/]"),
+            ("Sistema", f"{system.os_label} {system.os_version} {sep} usuario {system.user}"),
+            ("Privilegios", privileges),
+            ("Alcance", self.context.scope.describe()),
+            ("Herramientas", f"{available} de {len(tools)} disponibles en este equipo [dim](/tools)[/]"),
+            ("Sesión", f"«{saved.title}» [dim](reanudada)[/]" if saved else "nueva"),
+        ]
+        examples = [
+            "¿Qué puertos tiene abiertos mi computadora?",
+            "¿Hubo intentos de entrar a mi equipo con contraseñas incorrectas?",
+            "¿Es confiable el dominio example.com?",
+        ]
         self.console.print(
-            Panel(
-                info,
-                title=f"{self.sym['app']} dui-IA {sep} Agente de ciberseguridad".strip(),
-                border_style="cyan",
-                title_align="left",
+            render_banner(
+                self.console,
+                version=__version__,
+                plain=self.plain,
+                sym=self.sym,
+                info=info,
+                examples=examples,
             )
         )
         if not system.admin:

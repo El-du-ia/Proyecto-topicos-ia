@@ -265,3 +265,42 @@ def test_long_streamed_answer_is_not_repeated_on_screen(context):
         assert sum(f"Punto {i}:" in line for line in screen) == 1, f"'Punto {i}' repetido o ausente"
     assert sum("dui-IA ─" in line for line in screen) == 1  # una sola cabecera de respuesta
     assert not any("escribiendo" in line for line in screen)  # la vista previa se borró
+
+
+# ------------------------------------------------------------- pantalla de inicio
+
+
+def test_logo_fonts_are_consistent():
+    from dui.ui.banner import BLOCK, PLAIN, logo
+
+    for font in (BLOCK, PLAIN):
+        heights = {len(glyph) for glyph in font.values()}
+        assert len(heights) == 1  # todas las letras tienen las mismas filas
+        for char, glyph in font.items():
+            assert len({len(row) for row in glyph}) == 1, f"'{char}' tiene filas de distinto ancho"
+    assert all(row.isascii() for row in logo(plain=True))
+    assert len(logo()) == 6 and len(logo(plain=True)) == 5
+
+
+def test_banner_shows_logo_and_information(context):
+    terminal = make(context, [], ["/exit"])
+    terminal.console.width = 120
+    terminal.run()
+    text = out(terminal)
+    assert "|____/" in text or "██████" in text  # logo en letras grandes
+    for expected in (
+        "Agente inteligente de ciberseguridad",
+        "Modelo",
+        "fake/model",
+        "Herramientas",
+        "Prueba",
+    ):
+        assert expected in text
+
+
+def test_banner_falls_back_to_name_on_narrow_terminals(context):
+    terminal = make(context, [], ["/exit"], plain=True)
+    terminal.console.width = 40
+    terminal.run()
+    text = out(terminal)
+    assert "|____/" not in text and "dui-IA" in text

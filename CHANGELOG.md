@@ -2,6 +2,13 @@
 
 ## 2.0.0.dev0 (en desarrollo, rama `v2`)
 
+### Pantalla de inicio
+
+- Logo "DUI-IA" en letras grandes con degradado de color (fuente de bloques; en `--ascii`,
+  fuente ASCII). En terminales angostas se muestra solo el nombre.
+- Panel "Listo para ayudarte" con modelo, sistema, privilegios, alcance, herramientas
+  disponibles, sesión y tres preguntas de ejemplo para empezar.
+
 ### Herramientas del propio equipo y corrección del streaming
 
 **Agregado**

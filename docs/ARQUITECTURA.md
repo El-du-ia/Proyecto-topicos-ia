@@ -100,6 +100,7 @@ rechazan esos historiales). En la base se conserva todo.
 | `hooks.py` | `TerminalHooks`: spinner, streaming con `rich.Live`, panel por herramienta, confirmación |
 | `commands.py` | Catálogo de comandos agrupado, alias en español y autocompletado con descripción |
 | `symbols.py` | Íconos con emoji o ASCII; detecta la consola clásica de Windows |
+| `banner.py` | Pantalla de inicio: logo en letras grandes (bloques o ASCII) y panel de información |
 
 **Streaming**: si `hooks.streaming` es True, el Runner llama a `llm.complete(..., on_text=...)`.
 `LiteLLMClient` pide `stream=True`, entrega cada fragmento de texto y al final reconstruye la
