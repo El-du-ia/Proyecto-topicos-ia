@@ -16,6 +16,32 @@
 8. **Mantener la filosofía de v1**: confirmación, explicaciones simples, registro,
    y ahora además el **alcance permitido**.
 
+## Para retomar (estado al 16/10/2026)
+
+Rama `v2`, último commit `779e50c`. Fases 0, 1, 3 y 4 terminadas; fase 2 a medias; fase 5 sin
+empezar. 113 pruebas pasando en Windows; probado en vivo con Gemini.
+
+Pendientes, en orden sugerido:
+
+1. **Pruebas de las herramientas del propio equipo** (`network_interfaces`,
+   `local_connections`, `analyze_logs`, `analyze_log_file`). Hoy solo están probadas a mano
+   en Windows. Falta probar los backends de Linux y macOS con salidas simuladas
+   (`monkeypatch` de `run`), como en `tests/test_recon.py`.
+2. **Probar `analyze_logs` en un Linux real**: journalctl, `/var/log/auth.log`, permisos de
+   los grupos `adm`/`systemd-journal`.
+3. **Herramientas activas de red** (fase 2): escaneo de puertos (nmap si está instalado;
+   `compat.find_binary` ya lo busca en `C:\Program Files (x86)\Nmap`), descubrimiento de hosts
+   y captura de tráfico (Npcap en Windows). Deben ser `sensitive=True` y validar el objetivo con
+   `ctx.scope` (ver "Cómo agregar una herramienta" en `docs/DESARROLLO.md`).
+4. **Fase 5**: reportes en HTML, `install.ps1` e `install.sh`, prueba manual en macOS,
+   ejecutable opcional (PyInstaller) y eliminar `legacy/`.
+5. **Detalles menores**: resumir el contexto recortado en sesiones largas (hoy solo se
+   recorta); `DEFAULT_MODEL` en `config.py` sigue siendo `gemini/gemini-2.5-flash`, mientras
+   que `.env.example` usa `gemini/gemini-3.8-flash`: hay que unificarlos.
+
+Al retomar en Windows: si `uv sync` falla con "El proceso no tiene acceso al archivo
+...dui-ia.exe", hay que cerrar el `dui-ia` que esté abierto.
+
 ## Fases
 
 ### ✅ Fase 0 · Base del proyecto
