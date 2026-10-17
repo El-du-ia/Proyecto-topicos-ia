@@ -43,16 +43,23 @@
 - [x] Reintentos con espera creciente ante errores pasajeros del proveedor (503, límites)
 - [x] Probado con Gemini real en Windows
 
-### ⏳ Fase 2 · Plataforma y herramientas activas
-- [ ] `network_interfaces`: interfaces de red (psutil + scapy)
-- [ ] `local_connections`: puertos abiertos y conexiones del propio equipo (psutil)
-- [ ] `port_scan`: nmap si está instalado (salida XML); si no, escáner TCP propio
-      (asyncio, sin privilegios)
-- [ ] `host_discovery`: ARP (scapy, con privilegios) → ping → sondeo TCP
-- [ ] `packet_capture`: scapy (Npcap en Windows, root o capabilities en Linux)
-- [ ] `analyze_logs`: Linux (journalctl, /var/log) y Windows (Visor de eventos,
-      p. ej. 4625 = inicio de sesión fallido), con el mismo formato de salida
-- [ ] Restricción de rutas de escritura y lectura
+### ⏳ Fase 2 · Plataforma y herramientas
+**Herramientas sobre el propio equipo** (hechas, probadas en vivo en Windows):
+- [x] `network_interfaces`: interfaces de red (psutil)
+- [x] `local_connections`: puertos abiertos y conexiones del propio equipo, con el programa
+      que los usa y aviso de servicios delicados expuestos a la red (psutil)
+- [x] `analyze_logs`: Windows (Visor de eventos vía `wevtutil`) y Linux (journalctl, o
+      `/var/log` si no hay systemd), con el mismo formato de salida; macOS experimental.
+      Categorías: inicios de sesión fallidos, cuentas, errores, servicios y antivirus
+- [x] `analyze_log_file`: un archivo de log concreto; rechaza archivos con secretos y lee
+      solo el final
+- [x] Las dos herramientas de logs piden confirmación (su contenido se envía al modelo)
+- [ ] **Pruebas automáticas de estas cuatro herramientas** (pendiente: hoy solo están probadas
+      a mano en Windows; falta probar los backends de Linux y macOS con salidas simuladas)
+- [ ] Probar `analyze_logs` en un Linux real (inicios de sesión fallidos, grupos `adm`/`systemd-journal`)
+
+**Herramientas activas de red** (pendientes):
+- [ ] Escaneo de puertos, descubrimiento de hosts y captura de tráfico
 
 ### ✅ Fase 3 · Sesiones persistentes
 - [x] SQLite (`<datos>/dui.db`): `sessions`, `messages` (mensaje completo, incluidas las
@@ -71,6 +78,10 @@
 ### ✅ Fase 4 · Terminal
 - [x] Respuestas en streaming (también cuando el modelo usa herramientas); sin reintentos
       después de haber mostrado texto, para no duplicar la respuesta
+- [x] Corregido: con respuestas más altas que la terminal, el panel se repetía en pantalla.
+      Ahora se muestra una vista previa limitada a la altura de la pantalla, que se borra
+      al terminar, y luego la respuesta completa una sola vez. Prueba de regresión con una
+      terminal virtual (`pyte`)
 - [x] Barra de estado: modelo, sesión, tokens, costo y privilegios
 - [x] Modo sin emojis (`--ascii`, `DUI_ASCII`), automático en la consola clásica de Windows;
       el modelo también deja de usar emojis (niveles de riesgo `[ALTO]`, `[BAJO]`...)

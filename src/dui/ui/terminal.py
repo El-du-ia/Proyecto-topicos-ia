@@ -168,7 +168,7 @@ class Terminal:
         # Autoguardado: el turno completo (pregunta, herramientas, respuesta) se guarda de una vez.
         self.store.create(self.session_id, self.llm.model)
         self.store.append_messages(self.session_id, result.new_messages, model=self.llm.model)
-        if result.final_output.strip() and not self.hooks.last_streamed:
+        if result.final_output.strip():
             self.console.print(answer_panel(result.final_output, self.sym))
 
     # ---------------------------------------------------------------- comandos

@@ -108,6 +108,26 @@ el resto del sistema no distingue entre los dos modos. Si el proveedor falla *de
 mostrar texto, no se reintenta (se duplicaría la respuesta). Con la salida redirigida a un
 archivo, el streaming se desactiva solo.
 
+**Por qué la vista previa y no el panel completo en vivo**: una vista en vivo (`rich.Live`)
+más alta que la terminal no se puede redibujar; lo que ya subió por el scroll queda en el
+historial y cada actualización deja otra copia. Por eso, mientras llega el texto se muestra
+una vista previa *transitoria* que nunca supera la altura de la pantalla (solo las últimas
+líneas) y, al terminar, se borra y se imprime la respuesta completa en Markdown una sola vez.
+`tests/test_terminal_ui.py` lo verifica interpretando la salida con una terminal virtual
+(`pyte`, dependencia solo de desarrollo).
+
+### `tools/system.py` y `tools/logs/`: el propio equipo
+- `network_interfaces` y `local_connections` usan `psutil` (igual en los tres sistemas).
+- `logs/` tiene un backend por sistema que convierte sus registros a `LogEvent`; el resumen
+  (`common.summarize`) es el mismo para todos: totales, fuentes, usuarios y orígenes, eventos
+  repetidos agrupados.
+
+| Sistema | Fuente | Notas |
+|---|---|---|
+| Windows | `wevtutil qe ... /f:RenderedXml` | *Security* requiere Administrador; su salida viene en la página ANSI (`mbcs`), no en UTF-8 |
+| Linux | `journalctl -o json`, o `/var/log/auth.log`, `secure`, `syslog` | Para ver todo el sistema: root o grupos `adm`/`systemd-journal` |
+| macOS | `log show --style ndjson` | Experimental: solo inicios de sesión fallidos y fallas graves |
+
 ### `compat.py`
 Todo lo que depende del SO: `is_admin()` (Windows: `IsUserAnAdmin`; Unix:
 `geteuid`), `find_binary()` (incluidas rutas típicas de Windows como

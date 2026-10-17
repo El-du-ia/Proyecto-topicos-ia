@@ -68,7 +68,7 @@ def test_runner_streams_text_to_hooks():
         [], "hola"
     )
     assert "".join(hooks.pieces) == "Hola, todo bien por aquí" and len(hooks.pieces) > 1
-    assert result.final_output == "Hola, todo bien por aquí" and hooks.last_streamed
+    assert result.final_output == "Hola, todo bien por aquí"
 
 
 def build_agent_for_tests():
@@ -80,15 +80,17 @@ def build_agent_for_tests():
 def test_streamed_answer_is_not_printed_twice(context):
     terminal = make(context, [reply("Respuesta única en streaming")], ["hola", "/exit"], streaming=True)
     terminal.run()
-    assert out(terminal).count("Respuesta única en streaming") == 1
+    screen = _virtual_screen(out(terminal), 120, 40)
+    assert sum("Respuesta única en streaming" in line for line in screen) == 1
 
 
 def test_streaming_with_tool_calls_shows_final_answer(context):
     responses = [call("dns_lookup", domain="localhost"), reply("Respuesta final")]
     terminal = make(context, responses, ["consulta", "/exit"], streaming=True)
     terminal.run()
-    text = out(terminal)
-    assert text.count("Respuesta final") == 1 and "dns_lookup" in text
+    screen = _virtual_screen(out(terminal), 120, 40)
+    assert sum("Respuesta final" in line for line in screen) == 1
+    assert any("dns_lookup" in line for line in screen)
 
 
 def test_litellm_client_streaming(monkeypatch):
@@ -210,3 +212,56 @@ def test_ascii_symbols_survive_rich_markup():
 
     for name, symbol in ASCII.items():
         assert Text.from_markup(symbol).plain == symbol, name
+
+
+# ------------------------------------------- regresión: salida repetida en streaming
+
+
+class SlowStreamingLLM(FakeLLM):
+    """Entrega el texto en trozos con pausas, como un modelo real, para que la vista en vivo
+    alcance a redibujarse muchas veces."""
+
+    def complete(self, messages, tools, on_text=None):
+        import time
+
+        response = self.responses.pop(0)
+        if on_text is not None:
+            for i in range(0, len(response.content), 60):
+                on_text(response.content[i : i + 60])
+                time.sleep(0.02)
+        return response
+
+
+def _virtual_screen(output: str, cols: int, rows: int) -> list[str]:
+    """Interpreta la salida como una terminal real (cursor, borrado, scroll) y devuelve
+    todas las filas: el historial que subió por el scroll más la pantalla visible."""
+    import pyte
+
+    screen = pyte.HistoryScreen(cols, rows, history=5000)
+    screen.set_mode(pyte.modes.LNM)
+    pyte.Stream(screen).feed(output)
+    scrolled = ["".join(line[x].data for x in range(cols)) for line in screen.history.top]
+    return scrolled + list(screen.display)
+
+
+def test_long_streamed_answer_is_not_repeated_on_screen(context):
+    """Bug reportado: con respuestas más altas que la terminal, el panel se repetía muchas veces."""
+    cols, rows = 80, 20
+    answer = "".join(f"Punto {i}: explicación de la herramienta número {i}.\n\n" for i in range(30))
+    console = Console(file=io.StringIO(), width=cols, height=rows, force_terminal=True, color_system=None)
+    answers = ["¿qué puedes hacer?", "/exit"]
+    terminal = Terminal(
+        build_agent(context),
+        SlowStreamingLLM([reply(answer)]),
+        context,
+        AuditLog("t"),
+        console=console,
+        input_func=lambda p: answers.pop(0) if answers else (_ for _ in ()).throw(EOFError()),
+        streaming=True,
+    )
+    terminal.run()
+    screen = _virtual_screen(console.file.getvalue(), cols, rows)
+    for i in range(30):
+        assert sum(f"Punto {i}:" in line for line in screen) == 1, f"'Punto {i}' repetido o ausente"
+    assert sum("dui-IA ─" in line for line in screen) == 1  # una sola cabecera de respuesta
+    assert not any("escribiendo" in line for line in screen)  # la vista previa se borró

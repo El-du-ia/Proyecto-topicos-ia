@@ -45,8 +45,6 @@ class TerminalHooks(RunHooks):
         self._status: Any = None
         self._live: Live | None = None
         self._buffer = ""
-        # True si la última respuesta ya se mostró en streaming (la terminal no la repite).
-        self.last_streamed = False
 
     # ------------------------------------------------------------ indicadores
 
@@ -67,8 +65,28 @@ class TerminalHooks(RunHooks):
 
     def on_llm_start(self) -> None:
         self._buffer = ""
-        self.last_streamed = False
         self._spinner("[cyan]Pensando…")
+
+    def _preview(self) -> Panel:
+        """Vista previa que NUNCA supera la altura de la pantalla: solo las últimas líneas.
+
+        Una vista en vivo más alta que la terminal no se puede borrar (lo que ya subió por
+        el scroll queda en el historial) y cada actualización dejaría una copia repetida.
+        """
+        width = max(20, self.console.width - 1)  # 1 columna de margen por si la terminal cuenta distinto
+        rows = max(3, self.console.size.height - 4)
+        lines = Text(self._buffer).wrap(self.console, width - 4)
+        hidden = len(lines) > rows
+        visible = Text("\n").join(list(lines)[-rows:])
+        return Panel(
+            visible,
+            title=f"{self.sym['agent']} dui-IA",
+            title_align="left",
+            subtitle="escribiendo…" + (" (se muestra el final)" if hidden else ""),
+            subtitle_align="right",
+            border_style="cyan dim",
+            width=width,
+        )
 
     def on_text(self, delta: str) -> None:
         self._buffer += delta
@@ -76,29 +94,27 @@ class TerminalHooks(RunHooks):
             if self._status is not None:
                 self._status.stop()
                 self._status = None
+            # transient: al terminar se borra y la respuesta completa se imprime una sola vez.
             self._live = Live(
-                answer_panel(self._buffer, self.sym),
+                self._preview(),
                 console=self.console,
-                refresh_per_second=12,
-                vertical_overflow="visible",
+                refresh_per_second=8,
+                transient=True,
+                vertical_overflow="crop",
             )
             self._live.start()
         else:
-            self._live.update(answer_panel(self._buffer, self.sym))
+            self._live.update(self._preview())
 
     def on_llm_end(self, response: LLMResponse) -> None:
-        streamed = self._live is not None
-        if streamed:
-            self._live.update(answer_panel(response.content or self._buffer, self.sym))
         self.stop()
-        self.last_streamed = streamed and not response.tool_calls
         # Texto que el modelo escribe antes de usar una herramienta (p. ej. "Voy a consultar...").
-        if not streamed and response.tool_calls and response.content and response.content.strip():
+        # La respuesta final la imprime la terminal, con formato Markdown completo.
+        if response.tool_calls and response.content and response.content.strip():
             self.console.print(Markdown(response.content.strip()), style="dim")
 
     def on_llm_error(self) -> None:
         self.stop()
-        self.last_streamed = False
 
     # ------------------------------------------------------------ herramientas
 

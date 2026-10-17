@@ -68,7 +68,8 @@ uv run dui-ia --no-stream                       # muestra cada respuesta complet
 ```
 
 **En la terminal**:
-- Las respuestas aparecen a medida que el modelo las escribe (streaming).
+- Mientras el modelo escribe, se ve una vista previa con las últimas líneas; al terminar
+  aparece la respuesta completa con formato.
 - Abajo hay una barra con el modelo, la sesión, los tokens, el costo y los privilegios.
 - `Tab` autocompleta los comandos y muestra qué hace cada uno.
 - `↑`/`↓` recorre lo que escribiste antes, incluso de otras sesiones.
@@ -145,10 +146,18 @@ funcionan bien Llama 3.1+, Qwen 2.5+ y Mistral Nemo.
 | `dns_lookup` | Registros DNS (A, AAAA, MX, TXT, NS, CNAME, SOA) | no | ✅ | ✅ |
 | `reverse_dns` | Nombre asociado a una IP | no | ✅ | ✅ |
 | `whois_lookup` | Registrador, fechas y dueño de dominios e IPs (RDAP, con WHOIS clásico de respaldo) | no | ✅ | ✅ |
+| `network_interfaces` | Interfaces de red del equipo: estado, velocidad, IPv4/IPv6/MAC | no | ✅ | ✅ |
+| `local_connections` | Puertos abiertos y conexiones del equipo con su programa; avisa de servicios delicados expuestos (RDP, SMB, Telnet, bases de datos) | no | ✅ | ✅ |
+| `analyze_logs` | Registros de seguridad del equipo: inicios de sesión fallidos, cambios en cuentas, errores, servicios, antivirus | **sí** (privacidad) | ✅ Visor de eventos | ✅ journalctl / `/var/log` |
+| `analyze_log_file` | Analiza un archivo de log concreto (errores, autenticación, señales de ataque) | **sí** (privacidad) | ✅ | ✅ |
 | `generate_report` | Reporte en Markdown | no | ✅ | ✅ |
 
-Escaneo de puertos, descubrimiento de hosts, captura de tráfico, conexiones
-locales y análisis de logs (Visor de eventos o journalctl) llegan en la fase 2.
+Las herramientas de logs piden confirmación porque su contenido (usuarios, IPs,
+nombres de equipos) se envía al modelo de IA. En Windows, los inicios de sesión
+fallidos y los cambios de cuentas están en el registro *Security*, que requiere
+abrir la terminal como Administrador; errores, servicios y Defender se leen sin
+privilegios. `analyze_log_file` rechaza archivos que suelen guardar secretos
+(`.env`, claves SSH, `.pem`...). En macOS, `analyze_logs` es experimental.
 
 ## Dónde se guardan los datos
 

@@ -2,6 +2,25 @@
 
 ## 2.0.0.dev0 (en desarrollo, rama `v2`)
 
+### Herramientas del propio equipo y corrección del streaming
+
+**Agregado**
+- `network_interfaces` y `local_connections` (psutil): interfaces, puertos abiertos y
+  conexiones del equipo, con aviso de servicios delicados expuestos a la red.
+- `analyze_logs`: registros de seguridad en Windows (Visor de eventos) y Linux (journalctl o
+  `/var/log`); macOS experimental. Pide confirmación porque el contenido se envía al modelo.
+- `analyze_log_file`: análisis de un archivo de log; rechaza archivos con secretos.
+- `pyte` como dependencia de desarrollo para probar lo que se ve en una terminal real.
+
+**Corregido**
+- Con respuestas más altas que la terminal, el panel de la respuesta se repetía muchas veces
+  en pantalla. Ahora hay una vista previa limitada a la altura de la pantalla y la respuesta
+  completa se imprime una sola vez al final.
+
+**Pendiente**: pruebas automáticas de las cuatro herramientas nuevas.
+
+113 pruebas.
+
 ### Fase 4: terminal
 
 **Agregado**
