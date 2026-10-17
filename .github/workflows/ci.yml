@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, v2]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} · Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    # macOS todavía no es prioridad: se prueba, pero un fallo no bloquea.
+    continue-on-error: ${{ matrix.os == 'macos-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python: ["3.12"]
+        include:
+          - os: ubuntu-latest
+            python: "3.11"
+          - os: windows-latest
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.5"
+          python-version: ${{ matrix.python }}
+      - name: Instalar dependencias (exactamente las del uv.lock)
+        run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check src tests
+      - name: Formato
+        run: uv run ruff format --check src tests
+      - name: Pruebas
+        run: uv run pytest
+      - name: Diagnóstico (dui-ia --check)
+        run: uv run dui-ia --check

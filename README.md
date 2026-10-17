@@ -1,365 +1,145 @@
-# Agente Inteligente de Ciberseguridad 🛡️
+# dui-IA · Agente inteligente de ciberseguridad 🛡️
 
-Sistema de ciberseguridad basado en CAI (Cybersecurity AI) que permite ejecutar herramientas de seguridad, interpretar resultados técnicos en lenguaje simple y solicitar confirmación antes de acciones sensibles.
+Asistente de ciberseguridad para personas **sin conocimientos técnicos**: ejecuta
+herramientas de análisis, **pide confirmación antes de cualquier acción sensible**
+y **explica los resultados en lenguaje simple**.
 
-## 🎯 Características
+> **v2 en desarrollo** (rama `v2`). Ya no depende de CAI: conserva su
+> arquitectura (Agente → Runner → Herramientas) con un núcleo propio,
+> multiplataforma y compatible con cualquier modelo de lenguaje.
+> El código de v1 está en [legacy/](legacy/) como referencia.
+> Avance: [docs/PLAN_V2.md](docs/PLAN_V2.md).
 
-### ✅ Implementado
+## Filosofía
 
-- **Herramientas Personalizadas**: 8+ herramientas de ciberseguridad integradas
-  - Escaneo de red (Nmap)
-  - Captura de tráfico (Scapy)
-  - Consultas WHOIS y DNS
-  - Análisis de logs del sistema
+1. **Confirmación obligatoria**: las herramientas sensibles (escaneos, capturas)
+   no se ejecutan sin que el usuario lo apruebe. La impone el código, no el prompt.
+2. **Alcance permitido**: solo se analizan objetivos autorizados. Por defecto, solo
+   redes privadas o locales; cualquier otro objetivo hay que agregarlo de forma explícita.
+3. **Explicaciones simples**: cada resultado técnico se traduce, con nivel de riesgo
+   y recomendaciones.
+4. **Todo queda registrado**: cada confirmación y ejecución se guarda en la auditoría.
+5. **Multiplataforma**: Windows y Linux (macOS en camino), con las mismas herramientas.
+6. **Cualquier LLM**: Gemini, OpenAI, Anthropic, etc., o modelos locales (Ollama, LM Studio).
 
-- **Confirmación de Acciones**: Solicita aprobación antes de ejecutar comandos sensibles
+## Instalación
 
-- **Intérprete de Resultados**: Traduce salidas técnicas a explicaciones comprensibles
+Se necesita [uv](https://docs.astral.sh/uv/). uv instala la versión de Python
+correcta (3.12) por su cuenta, así que no hace falta instalarla aparte.
 
-- **Registro Completo**: Todas las acciones quedan documentadas en logs JSON
+**Windows (PowerShell):**
 
-- **Interfaz CLI Amigable**: Terminal con colores y mensajes claros
-
-- **Memoria de Sesión**: Guarda el contexto de conversaciones
-
-- **Gestión de Sesiones Persistentes**: Reanuda conversaciones desde donde las dejaste
-  - Lista todas las sesiones guardadas
-  - Carga el contexto completo de conversaciones anteriores
-  - Busca sesiones por contenido
-  - Mantiene el historial entre ejecuciones
-
-## 📋 Requisitos
-
-- Python 3.8+
-- Kali Linux o cualquier distribución Linux
-- Privilegios sudo (para algunas herramientas)
-
-### ⚠️ IMPORTANTE: Problema común con sudo
-
-**❌ NO hagas esto:**
-```bash
-sudo python main.py  # Usará el Python del sistema, sin dependencias
-```
-
-**✅ Haz esto:**
-```bash
-sudo ./[nombre_entorno_virtual]/bin/python main.py
-```
-
-**Explicación:**
-Cuando ejecutas `sudo python`, se usa el Python del sistema (root) que NO tiene instaladas las dependencias (CAI, Scapy, etc.). Ejecutar `sudo ./[nombre_entorno_virtual]/bin/python main.py` resuelven esto automáticamente usando el Python del entorno virtual.
-
-## 🚀 Instalación
-
-1. **Clonar/ubicar el proyecto:**
-```bash
-cd /home/kali/topicos_IA
-```
-
-```bash
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 git clone https://github.com/El-du-ia/Proyecto-topicos-ia.git
+cd Proyecto-topicos-ia
+git checkout v2
+uv sync
+copy .env.example .env    # y edita .env con tu API key
 ```
 
-2. **Crear y activar entorno virtual (si no existe):**
-
-Crea el entorno:
-```bash
-python -m venv TAI_env
-
-```
-
-Activa el entorno:
-```bash
-source TAI_env/bin/activate
-
-```
-
-3. **Instalar dependencias:**
-
-**Explicación:**
-    Se usa uv como instalador de paquetes mas rapido que pip y menos tardado en la instalacion de dependencias
+**Linux / macOS:**
 
 ```bash
- pip install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone https://github.com/El-du-ia/Proyecto-topicos-ia.git
+cd Proyecto-topicos-ia
+git checkout v2
+uv sync
+cp .env.example .env      # y edita .env con tu API key
 ```
+
+Comprueba que todo esté bien:
 
 ```bash
- uv pip install cai-framework && pip install scapy
+uv run dui-ia --check
 ```
 
-4. **Configurar variables de entorno:**
-Asegúrate de que tu archivo `.env` tenga las API keys configuradas:
-```
-OPENAI_API_KEY="sk-1234"
-ANTHROPIC_API_KEY=""
-GEMINI_API_KEY="api?keyajsaojsoasoaosjoa"
-OLLAMA=""
-PROMPT_TOOLKIT_NO_CPR=1
-CAI_STREAM=false
-CAI_MODEL="gemini/gemini-2.5-flash"
-```
-
-## 💻 Uso
-
-### Ejecución Básica
+## Uso
 
 ```bash
-# Sin privilegios especiales (no recomendado)
-python main.py
-
-# Con privilegios sudo (para probar todo su potencial)
-sudo ./TAI_env/bin/python main.py
+uv run dui-ia                                   # usa el modelo de .env
+uv run dui-ia --model ollama_chat/llama3.1 --api-base http://localhost:11434
+uv run dui-ia --scope 203.0.113.0/24            # amplía el alcance para esta ejecución
 ```
 
-### Menú Principal
+Ejemplos de preguntas:
 
-Al ejecutar, verás un menú con opciones:
+- *¿Quién registró el dominio example.com y cuándo expira?*
+- *¿Qué servidores de correo usa gmail.com?*
+- *¿A quién pertenece la IP 8.8.8.8?*
 
-1. **Chat interactivo** - Modo principal, conversación con el agente
-2. **Ver herramientas** - Lista todas las herramientas disponibles
-3. **Historial** - Muestra acciones de la sesión actual
-4. **Comando rápido** - Ejecutar una acción específica
-5. **Ayuda** - Documentación y ejemplos
-6. **Salir** - Cerrar el programa
+| Comando | Qué hace |
+|---|---|
+| `/help` | Ayuda y ejemplos |
+| `/tools` | Herramientas y si están disponibles en este equipo |
+| `/scope`, `/scope add <objetivo>` | Ver o ampliar el alcance permitido (pide confirmar autorización) |
+| `/model [nombre]` | Ver o cambiar el modelo en caliente |
+| `/status` | Sistema, modelo, sesión y auditoría |
+| `/cost` | Tokens y costo estimado |
+| `/new` | Conversación nueva |
+| `/clear`, `/exit` | Limpiar pantalla, salir |
 
-### Comandos Especiales en el Terminal
+También hay alias en español: `/ayuda`, `/herramientas`, `/alcance`, `/salir`, etc.
 
-Durante el chat interactivo, puedes usar estos comandos:
+### Privilegios
 
-**Gestión de Sesiones:**
-- `/sessions` - Listar todas las sesiones guardadas
-- `/load <id>` - Reanudar una sesión anterior
-- `/search <texto>` - Buscar sesiones por contenido
-- `/history` - Ver historial de la sesión actual
-- `/info` - Información detallada de la sesión actual
+Algunas herramientas (captura de tráfico, escaneo SYN) necesitan privilegios:
 
-**Información:**
-- `/help` - Mostrar ayuda completa
-- `/tools` - Listar herramientas disponibles
-- `/examples` - Ver ejemplos de uso
-- `/status` - Estado del sistema
-- `/permisos` - Ver permisos del sistema
-- `/cost` - Ver costos de API
+- **Windows**: abrir la terminal como Administrador. Para capturar tráfico, instalar
+  [Npcap](https://npcap.com) (viene con el instalador de Nmap).
+- **Linux**: `sudo .venv/bin/dui-ia`. No uses `sudo python`, porque usaría el Python
+  del sistema sin las dependencias.
 
-**Otros:**
-- `/clear` - Limpiar pantalla
-- `/exit` o `/quit` - Salir
+`/tools` y `--check` indican qué falta en tu equipo.
 
-### Ejemplos de Uso
+## Modelos
 
-```bash
-# En el modo interactivo, puedes escribir:
+dui-IA usa [LiteLLM](https://docs.litellm.ai/docs/providers), así que cualquier
+proveedor que LiteLLM soporte funciona. Basta con cambiar `DUI_MODEL` en `.env`:
 
-"Escanea la IP 192.168.1.1"
-"Captura 100 paquetes en wlan0"
-"Busca información WHOIS de google.com"
-"Analiza el log /var/log/auth.log buscando errores"
-"Muestra las últimas 50 líneas de /var/log/syslog"
-```
+| Proveedor | `DUI_MODEL` | Requiere |
+|---|---|---|
+| Google Gemini (por defecto) | `gemini/gemini-2.5-flash` | `GEMINI_API_KEY` |
+| OpenAI | `openai/gpt-4o-mini` | `OPENAI_API_KEY` |
+| Anthropic | `anthropic/claude-sonnet-5-5` | `ANTHROPIC_API_KEY` |
+| Ollama (local) | `ollama_chat/llama3.1` | `DUI_API_BASE=http://localhost:11434` |
+| LM Studio (local) | `lm_studio/<modelo>` | `DUI_API_BASE=http://localhost:1234/v1` |
 
-### Reanudar Conversaciones Anteriores
+El modelo tiene que soportar *function calling* (herramientas). Entre los locales,
+funcionan bien Llama 3.1+, Qwen 2.5+ y Mistral Nemo.
 
-```bash
-# Listar sesiones guardadas
-🤖 dui-IA > /sessions
+## Herramientas
 
-# Cargar una sesión específica
-🤖 dui-IA > /load 0a28b9e5
+| Herramienta | Qué hace | Confirmación | Windows | Linux |
+|---|---|---|---|---|
+| `dns_lookup` | Registros DNS (A, AAAA, MX, TXT, NS, CNAME, SOA) | no | ✅ | ✅ |
+| `reverse_dns` | Nombre asociado a una IP | no | ✅ | ✅ |
+| `whois_lookup` | Registrador, fechas y dueño de dominios e IPs (RDAP, con WHOIS clásico de respaldo) | no | ✅ | ✅ |
+| `generate_report` | Reporte en Markdown | no | ✅ | ✅ |
 
-# El agente recordará toda la conversación anterior
-🤖 dui-IA > continúa con el análisis de red que estábamos haciendo
-```
+Escaneo de puertos, descubrimiento de hosts, captura de tráfico, conexiones
+locales y análisis de logs (Visor de eventos o journalctl) llegan en la fase 2.
 
-Ver documentación completa: [docs/GESTION_SESIONES.md](docs/GESTION_SESIONES.md)
+## Dónde se guardan los datos
 
-## 🛠️ Herramientas Disponibles
+| Sistema | Carpeta |
+|---|---|
+| Windows | `%LOCALAPPDATA%\dui-IA` |
+| Linux | `~/.local/share/dui-IA` |
+| macOS | `~/Library/Application Support/dui-IA` |
 
-### Red (Network)
-- `network_sniffer_tool` - Captura paquetes de red ⚠️ Requiere sudo
-- `nmap_scan_tool` - Escaneo de puertos con Nmap ⚠️ Sensible
-- `nmap_ping_sweep` - Descubrimiento de hosts activos ⚠️ Sensible
+Ahí están la auditoría (`audit/`), los reportes (`reports/`) y el historial de
+entrada. Se puede cambiar con `DUI_DATA_DIR`.
 
-### Reconocimiento (Reconnaissance)
-- `whois_lookup_tool` - Consulta información de dominios
-- `dns_lookup_tool` - Resolución DNS
-- `reverse_dns_lookup_tool` - DNS inverso
+## Documentación
 
-### Análisis (Analysis)
-- `analyze_log_tool` - Análisis inteligente de logs
-- `tail_log_tool` - Visualización de logs
+- [docs/PLAN_V2.md](docs/PLAN_V2.md): plan y avance por fases
+- [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md): cómo está construido
+- [docs/DESARROLLO.md](docs/DESARROLLO.md): uv, pruebas, cómo agregar una herramienta
+- [CHANGELOG.md](CHANGELOG.md): cambios
 
-## 📁 Estructura del Proyecto
+## Aviso legal
 
-```
-topicos_Ia/
-├── main.py                    # Punto de entrada
-├── toolTest.py               # Versión original (referencia)
-├── demo_sessions.py          # Demo de gestión de sesiones
-├── requirements.txt          # Dependencias
-├── .env                      # Configuración (API keys)
-│
-├── src/
-│   ├── core/
-│   │   ├── agent_controller.py    # Controlador principal
-│   │   ├── tool_manager.py        # Gestor de herramientas
-│   │   ├── interpreter.py         # Traductor de resultados
-│   │   └── permissions.py         # Gestión de permisos
-│   │
-│   ├── tools/
-│   │   ├── cai_tools_wrapper.py   # Herramientas CAI
-│   │   ├── nmap_tool.py           # Escaneo de red
-│   │   ├── whois_tool.py          # WHOIS y DNS
-│   │   └── log_analyzer_tool.py   # Análisis de logs
-│   │
-│   ├── ui/
-│   │   ├── cli_interface.py       # Interfaz de terminal
-│   │   ├── custom_terminal.py     # Terminal personalizada (coordinador)
-│   │   ├── terminal_display.py    # Funciones de visualización
-│   │   ├── terminal_commands.py   # Manejador de comandos
-│   │   ├── session_commands.py    # Comandos de gestión de sesiones
-│   │   └── prompts.py             # Mensajes amigables
-│   │
-│   └── models/
-│       ├── conversation_memory.py # Memoria de sesión
-│       └── session_manager.py     # Gestión de sesiones persistentes
-│
-├── logs/                     # Logs de sesiones (JSONL)
-├── reports/                  # Reportes generados (futuro)
-├── memory/                   # Memoria persistente de conversaciones
-└── docs/                     # Documentación adicional
-    ├── GESTION_SESIONES.md   # Guía de gestión de sesiones
-    ├── PERMISOS.md           # Documentación de permisos
-    └── architecture.md       # Arquitectura del sistema
-```
-
-## 🔒 Seguridad y Permisos
-
-### Herramientas que requieren sudo:
-- Captura de paquetes (`network_sniffer_tool`)
-- Algunos logs del sistema (`/var/log/auth.log`, etc.)
-
-### Herramientas sensibles (piden confirmación):
-- Escaneos de red (Nmap)
-- Captura de tráfico
-- Cualquier comando que pueda afectar la red
-
-## 📊 Logs y Reportes
-
-### Logs de Sesión
-Ubicación: `logs/cai_*.jsonl` (formato JSONL)
-
-Contiene:
-- Todas las acciones ejecutadas
-- Aprobaciones/rechazos del usuario
-- Herramientas utilizadas
-- Timestamps de cada operación
-- Uso de tokens y costos de API
-
-### Memoria Conversacional
-Ubicación: `memory/{session_id}_memory.json`
-
-Guarda:
-- Historial completo de mensajes
-- Contexto de la conversación
-- Metadatos de sesión
-- Puede ser recargado para reanudar conversaciones
-
-
-#### El agente no responde
-- Verifica API key en `.env`
-- Comprueba conexión a Internet
-- Ejecuta: `python test_setup.py`
-- Revisa logs en `logs/`
-
-
-## 🗺️ Roadmap
-
-### ✅ Fase 1 - MVP (Completada)
-- Estructura modular del proyecto
-- Herramientas personalizadas integradas
-- Sistema de confirmación de acciones
-- Intérprete básico de resultados
-- CLI funcional
-
-###  Fase 2 - Reportes (Próximo)
-
-#### ✅ Fase 2.1 Sistema de sesiones persistentes**
-  - Guardar y cargar conversaciones completas
-  - Búsqueda de sesiones por contenido
-  - Reanudar desde donde se quedó
-
-#### Fase 2.2
-- Conexion con AWS para almacenaminto.
-- Generación automática de reportes
-- Exportación a PDF/Markdown
-- Resumen ejecutivo
-- Templates personalizablesvo
-- Templates personalizables
-
-### 📅 Fase 3 - UX Mejorada
-- CLI con rich (colores avanzados)
-- Menú interactivo mejorado
-- Memoria persistente entre sesiones
-- Sugerencias inteligentes
-
-### 📅 Fase 4 - Características Avanzadas (futuro)
-- Múltiples agentes especializados
-- Integración con APIs externas (VirusTotal, Shodan)
-- Dashboard web (FastAPI)
-- Análisis automatizado de vulnerabilidades
-
-## 🤝 Contribuciones
-
-Este es un proyecto educativo para el curso de Topicos_IA. 
-
-### Cómo agregar nuevas herramientas:
-
-1. Crear un nuevo archivo en `src/tools/`
-2. Decorar la función con `@function_tool`
-3. Documentar parámetros y funcionalidad
-4. Registrar en `main.py` con metadatos
-5. Probar en modo interactivo
-
-Ejemplo:
-```python
-from cai.sdk.agents import function_tool
-
-@function_tool
-def mi_herramienta(parametro: str) -> str:
-    """
-    Descripción de qué hace la herramienta.
-    
-    Args:
-        parametro: Qué hace este parámetro
-        
-    Returns:
-        Resultado de la operación
-    """
-    # Tu código aquí
-    return "Resultado"
-```
-
-## 📝 Licencia
-
-Proyecto educativo - Universidad/Institución
-
-## 👤 Autor
-
-El dui y el malcom tambien el break dance y tambien el manuelangas
-El dui-IA Team
-
-## 🙏 Agradecimientos
-
-- CAI Framework por la infraestructura base
-- Comunidad de Kali Linux
-- Herramientas open source: Nmap, Scapy, Wireshark
-- La chona 
-- MI apa y mi ama
-- El departamento de fotrografia de NEW YORK
-- Alguin mas pero no recuendo como se llama pero simon tambien el
-
----
-
-**Nota**: Este software está diseñado para uso educativo y pruebas en entornos autorizados. 
-El uso de herramientas de seguridad en redes sin autorización puede ser ilegal.
-No no hcemos responsables del mal uso de esta herraminta tome sus precuaciones.
+Analizar redes o equipos sin autorización puede ser ilegal. Usa dui-IA solo
+sobre sistemas propios o con permiso explícito.

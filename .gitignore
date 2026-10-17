@@ -1,5 +1,22 @@
+# Python
 __pycache__/
+*.py[cod]
+.venv/
 TAI_env/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Configuración local (contiene API keys)
 .env
+
+# Editores
 .vscode/
+.idea/
+
+# Datos generados (v1 los dejaba en la carpeta del proyecto)
 logs/*
+memory/
+*.pcap

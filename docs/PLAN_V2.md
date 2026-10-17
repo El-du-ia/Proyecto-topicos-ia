@@ -1,0 +1,81 @@
+# Plan dui-IA v2
+
+## Objetivos
+
+1. **Multiplataforma**: Windows y Linux como prioridad. macOS después, pero sin
+   decisiones que lo impidan (CI ya lo prueba sin bloquear).
+2. **Sin CAI**: CAI está desactualizado. Se conserva su arquitectura
+   (Agente → Runner → Herramientas) con un núcleo propio.
+3. **Cualquier LLM**, en la nube o local, mediante LiteLLM. Para pruebas, Gemini.
+4. **Herramientas que funcionen en todos los sistemas**: implementadas en Python
+   cuando se puede; si dependen de algo externo (nmap, Npcap), se detecta y hay
+   alternativa.
+5. **Terminal mejorada**.
+6. **uv en todo** (instalación, ejecución, pruebas, CI).
+7. **Documentar y probar en cada fase**.
+8. **Mantener la filosofía de v1**: confirmación, explicaciones simples, registro,
+   y ahora además el **alcance permitido**.
+
+## Fases
+
+### ✅ Fase 0 · Base del proyecto
+- [x] Rama `v2`; código v1 movido a `legacy/` y docs v1 a `docs/legacy/`
+- [x] `pyproject.toml` + `uv.lock` (Python 3.11–3.13; `.python-version` = 3.12)
+- [x] Defensa de cadena de suministro: `exclude-newer` en uv y LiteLLM fijado a 1.103.x
+      (las versiones 1.82.7/1.82.8 de LiteLLM fueron comprometidas en 2026)
+- [x] `ruff` (lint + formato) y `pytest`
+- [x] CI en GitHub Actions: Windows y Linux (obligatorios) + macOS (informativo)
+
+### ✅ Fase 1 · Núcleo propio
+- [x] `@tool`: esquema JSON generado desde type hints + docstring
+- [x] `Runner`: ciclo modelo ↔ herramientas con límite de pasos
+- [x] Confirmación de herramientas sensibles **impuesta por el Runner**
+      (si nadie puede confirmar, se rechaza)
+- [x] Validación de argumentos y del alcance **antes** de pedir confirmación
+- [x] Alcance permitido (`Scope`): redes privadas por defecto, `DUI_SCOPE` y `/scope add`
+- [x] Auditoría JSONL de confirmaciones y ejecuciones
+- [x] Cliente LiteLLM (cualquier proveedor o modelo local) con errores amigables
+- [x] Costo y tokens por sesión
+- [x] Terminal base (rich + prompt_toolkit) y `dui-ia --check`
+- [x] Herramientas pasivas migradas y mejoradas: DNS (más tipos de registro), DNS inverso
+      (IPv6), WHOIS por RDAP con respaldo por el puerto 43 (sin binario `whois`)
+- [x] Reportes en Markdown
+
+### ⏳ Fase 2 · Plataforma y herramientas activas
+- [ ] `network_interfaces`: interfaces de red (psutil + scapy)
+- [ ] `local_connections`: puertos abiertos y conexiones del propio equipo (psutil)
+- [ ] `port_scan`: nmap si está instalado (salida XML); si no, escáner TCP propio
+      (asyncio, sin privilegios)
+- [ ] `host_discovery`: ARP (scapy, con privilegios) → ping → sondeo TCP
+- [ ] `packet_capture`: scapy (Npcap en Windows, root o capabilities en Linux)
+- [ ] `analyze_logs`: Linux (journalctl, /var/log) y Windows (Visor de eventos,
+      p. ej. 4625 = inicio de sesión fallido), con el mismo formato de salida
+- [ ] Restricción de rutas de escritura y lectura
+
+### ⏳ Fase 3 · Sesiones persistentes
+- [ ] SQLite en la carpeta de datos: `sessions`, `messages` (incluidos los mensajes de
+      herramientas) y `audit`
+- [ ] Autoguardado por turno, `/resume`, `/sessions`, `/load`, `/rename`, `/delete`, `/export`
+- [ ] `/search` sobre todo el contenido (FTS5)
+- [ ] Recorte o resumen del contexto en sesiones largas
+
+### ⏳ Fase 4 · Terminal
+- [ ] Respuestas en streaming
+- [ ] Barra de estado (modelo, sesión, costo)
+- [ ] Modo sin emojis para consolas antiguas
+- [ ] Mejoras de usabilidad a partir de las pruebas con usuarios
+
+### ⏳ Fase 5 · Cierre
+- [ ] Reportes en HTML
+- [ ] Scripts `install.ps1` e `install.sh`
+- [ ] Prueba manual en macOS
+- [ ] Ejecutable opcional (PyInstaller)
+- [ ] Eliminar `legacy/`
+
+## Riesgos
+
+- **macOS**: sin equipo propio, solo CI. La captura de tráfico no se puede probar en CI.
+- **Modelos locales pequeños**: algunos no soportan *function calling*. Se documentan
+  los que sí funcionan.
+- **Herramientas que requieren privilegios**: no se pueden probar por completo en CI.
+  Se prueban con `subprocess` simulado y de forma manual.
