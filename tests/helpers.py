@@ -16,11 +16,16 @@ class FakeLLM:
         self.responses = list(responses)
         self.calls: list[list[dict[str, Any]]] = []
 
-    def complete(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> LLMResponse:
+    def complete(
+        self, messages: list[dict[str, Any]], tools: list[dict[str, Any]], on_text=None
+    ) -> LLMResponse:
         self.calls.append([dict(m) for m in messages])
-        if not self.responses:
-            return LLMResponse(content="(sin más respuestas)")
-        return self.responses.pop(0)
+        response = self.responses.pop(0) if self.responses else LLMResponse(content="(sin más respuestas)")
+        if on_text is not None and response.content:
+            # Simula el streaming: el texto llega en trozos de 5 caracteres.
+            for i in range(0, len(response.content), 5):
+                on_text(response.content[i : i + 5])
+        return response
 
 
 def call(tool_name: str, call_id: str = "call_1", **arguments: Any) -> LLMResponse:

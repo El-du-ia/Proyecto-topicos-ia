@@ -6,8 +6,8 @@ unas pocas centenas de líneas que controlamos por completo.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│ ui/terminal.py           Terminal (rich + prompt_toolkit)        │
-│   comandos /…, banner, paneles, diálogo de confirmación          │
+│ ui/                      Terminal (rich + prompt_toolkit)        │
+│   comandos /…, streaming, barra de estado, confirmación          │
 │   implementa RunHooks ──────────────┐                            │
 └──────────────┬──────────────────────┼────────────────────────────┘
                │ run(history, input)  │ confirm(), on_tool_end()…
@@ -92,6 +92,21 @@ messages_fts(content)  -- índice de texto completo
 por defecto, y un límite de caracteres), y siempre empieza en un mensaje del usuario,
 para no separar nunca una llamada a herramienta de su resultado (los proveedores
 rechazan esos historiales). En la base se conserva todo.
+
+### `ui/`: terminal
+| Módulo | Responsabilidad |
+|---|---|
+| `terminal.py` | Bucle principal, comandos, pantallas, autoguardado y barra de estado |
+| `hooks.py` | `TerminalHooks`: spinner, streaming con `rich.Live`, panel por herramienta, confirmación |
+| `commands.py` | Catálogo de comandos agrupado, alias en español y autocompletado con descripción |
+| `symbols.py` | Íconos con emoji o ASCII; detecta la consola clásica de Windows |
+
+**Streaming**: si `hooks.streaming` es True, el Runner llama a `llm.complete(..., on_text=...)`.
+`LiteLLMClient` pide `stream=True`, entrega cada fragmento de texto y al final reconstruye la
+respuesta completa (texto, tool calls y uso) con `litellm.stream_chunk_builder`, así que
+el resto del sistema no distingue entre los dos modos. Si el proveedor falla *después* de
+mostrar texto, no se reintenta (se duplicaría la respuesta). Con la salida redirigida a un
+archivo, el streaming se desactiva solo.
 
 ### `compat.py`
 Todo lo que depende del SO: `is_admin()` (Windows: `IsUserAnAdmin`; Unix:

@@ -68,11 +68,16 @@
       a herramienta de su resultado
 - [ ] Resumen automático de lo recortado (por ahora solo se recorta)
 
-### ⏳ Fase 4 · Terminal
-- [ ] Respuestas en streaming
-- [ ] Barra de estado (modelo, sesión, costo)
-- [ ] Modo sin emojis para consolas antiguas
-- [ ] Mejoras de usabilidad a partir de las pruebas con usuarios
+### ✅ Fase 4 · Terminal
+- [x] Respuestas en streaming (también cuando el modelo usa herramientas); sin reintentos
+      después de haber mostrado texto, para no duplicar la respuesta
+- [x] Barra de estado: modelo, sesión, tokens, costo y privilegios
+- [x] Modo sin emojis (`--ascii`, `DUI_ASCII`), automático en la consola clásica de Windows;
+      el modelo también deja de usar emojis (niveles de riesgo `[ALTO]`, `[BAJO]`...)
+- [x] Autocompletado de comandos con su descripción, alias incluidos
+- [x] Ayuda agrupada (General / Sesiones) con atajos de teclado
+- [x] Terminal dividida en módulos: `terminal.py`, `hooks.py`, `commands.py`, `symbols.py`
+- [ ] Mejoras de usabilidad a partir de pruebas con usuarios reales
 
 ### ⏳ Fase 5 · Cierre
 - [ ] Reportes en HTML

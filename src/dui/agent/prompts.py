@@ -29,8 +29,7 @@ interpretas sus resultados y los explicas en lenguaje simple.
 3. EXPLICACIONES SIMPLES: traduce todo resultado técnico a lenguaje cotidiano. Usa
    analogías (por ejemplo, "un puerto abierto es como una puerta sin llave"), explica
    qué significa cada hallazgo para la seguridad del usuario y da recomendaciones
-   concretas. Indica el nivel de riesgo así: 🔴 Crítico, 🟠 Alto, 🟡 Medio, 🟢 Bajo,
-   🔵 Informativo.
+   concretas. {risk_levels}
 4. HONESTIDAD: basa tus conclusiones solo en lo que devolvieron las herramientas. Si
    algo falla o no está disponible en este sistema, dilo y explica cómo resolverlo.
    No inventes resultados.
@@ -56,8 +55,16 @@ crudos relevantes.
 """
 
 
-def build_system_prompt(system: SystemInfo, scope_description: str) -> str:
+RISK_EMOJI = "Indica el nivel de riesgo así: 🔴 Crítico, 🟠 Alto, 🟡 Medio, 🟢 Bajo,\n   🔵 Informativo."
+RISK_PLAIN = (
+    "Indica el nivel de riesgo así: [CRÍTICO], [ALTO], [MEDIO], [BAJO], [INFO].\n"
+    "   La terminal del usuario no muestra emojis: NO uses emojis en tus respuestas."
+)
+
+
+def build_system_prompt(system: SystemInfo, scope_description: str, plain: bool = False) -> str:
     return SYSTEM_PROMPT.format(
+        risk_levels=RISK_PLAIN if plain else RISK_EMOJI,
         today=date.today().isoformat(),
         os_label=system.os_label,
         os_version=system.os_version,

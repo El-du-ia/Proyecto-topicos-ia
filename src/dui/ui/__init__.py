@@ -1,5 +1,7 @@
 """Interfaz de usuario en terminal."""
 
-from .terminal import Terminal, TerminalHooks
+from .hooks import TerminalHooks
+from .symbols import wants_plain
+from .terminal import Terminal
 
-__all__ = ["Terminal", "TerminalHooks"]
+__all__ = ["Terminal", "TerminalHooks", "wants_plain"]

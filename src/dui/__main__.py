@@ -41,10 +41,10 @@ def build_context(settings: Settings) -> ToolContext:
     return ToolContext(settings=settings, scope=Scope(settings.scope), system=system_info())
 
 
-def build_agent(context: ToolContext) -> Agent:
+def build_agent(context: ToolContext, plain: bool = False) -> Agent:
     return Agent(
         name="dui-IA",
-        instructions=lambda: build_system_prompt(context.system, context.scope.describe()),
+        instructions=lambda: build_system_prompt(context.system, context.scope.describe(), plain),
         tools=ToolRegistry(default_tools()),
     )
 
@@ -110,6 +110,8 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     resume = parser.add_mutually_exclusive_group()
     resume.add_argument("--resume", action="store_true", help="continúa la sesión más reciente")
     resume.add_argument("--session", metavar="ID", help="continúa una sesión concreta (ID o parte del ID)")
+    parser.add_argument("--ascii", action="store_true", help="interfaz sin emojis (consolas antiguas)")
+    parser.add_argument("--no-stream", action="store_true", help="muestra la respuesta completa al final")
     return parser.parse_args(argv)
 
 
@@ -126,6 +128,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.data_dir:
             settings.data_dir = args.data_dir
         settings.scope.extend(args.scope)
+        settings.ascii = settings.ascii or args.ascii
+        settings.stream = settings.stream and not args.no_stream
         context = build_context(settings)  # valida el alcance configurado
     except (ValueError, ScopeError) as exc:
         console.print(f"[red]Configuración inválida:[/] {exc}")
@@ -134,8 +138,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         return run_check(settings, console)
 
-    from .ui import Terminal
+    from .ui import Terminal, wants_plain
 
+    plain = wants_plain(console, forced=settings.ascii)
     store = SessionStore(settings.db_path)
     try:
         resume = None
@@ -152,7 +157,13 @@ def main(argv: list[str] | None = None) -> int:
 
         audit = AuditLog(new_session_id(), store)
         terminal = Terminal(
-            build_agent(context), build_llm(settings), context, audit, console=console, store=store
+            build_agent(context, plain),
+            build_llm(settings),
+            context,
+            audit,
+            console=console,
+            store=store,
+            plain=plain,
         )
         terminal.run(resume=resume)
     finally:

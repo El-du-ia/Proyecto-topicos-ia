@@ -63,7 +63,18 @@ uv run dui-ia --model ollama_chat/llama3.1 --api-base http://localhost:11434
 uv run dui-ia --scope 203.0.113.0/24            # amplía el alcance para esta ejecución
 uv run dui-ia --resume                          # continúa la última sesión
 uv run dui-ia --session 47437b                  # continúa una sesión concreta (parte del ID)
+uv run dui-ia --ascii                           # sin emojis (consolas antiguas, lectores de pantalla)
+uv run dui-ia --no-stream                       # muestra cada respuesta completa al final
 ```
+
+**En la terminal**:
+- Las respuestas aparecen a medida que el modelo las escribe (streaming).
+- Abajo hay una barra con el modelo, la sesión, los tokens, el costo y los privilegios.
+- `Tab` autocompleta los comandos y muestra qué hace cada uno.
+- `↑`/`↓` recorre lo que escribiste antes, incluso de otras sesiones.
+- `Ctrl+C` cancela la respuesta en curso; `Ctrl+D` sale.
+- En la consola clásica de Windows (conhost) se usa texto plano automáticamente. En
+  Windows Terminal, PowerShell 7 o cualquier terminal de Linux se ven los emojis.
 
 Ejemplos de preguntas:
 

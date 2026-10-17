@@ -81,7 +81,7 @@ def test_llm_error_is_shown_and_session_continues(context):
     from dui.errors import LLMError
 
     class Broken(FakeLLM):
-        def complete(self, messages, tools):
+        def complete(self, messages, tools, on_text=None):
             raise LLMError("AuthenticationError: clave inválida")
 
     terminal = make_terminal(context, [], ["hola", "/exit"])

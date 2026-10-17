@@ -34,6 +34,11 @@ class RunHooks:
     usuario, una acción sensible no se ejecuta.
     """
 
+    # Si es True, el Runner pide la respuesta en streaming y llama a on_text con cada fragmento.
+    streaming: bool = False
+
+    def on_text(self, delta: str) -> None: ...
+
     def on_llm_start(self) -> None: ...
 
     def on_llm_end(self, response: LLMResponse) -> None: ...
@@ -87,7 +92,8 @@ class Runner:
         for turn in range(1, self.max_turns + 1):
             self.hooks.on_llm_start()
             try:
-                response = self.llm.complete(messages, tools)
+                on_text = self.hooks.on_text if self.hooks.streaming else None
+                response = self.llm.complete(messages, tools, on_text=on_text)
             except BaseException:
                 self.hooks.on_llm_error()  # para que la interfaz limpie (p. ej. el spinner)
                 raise

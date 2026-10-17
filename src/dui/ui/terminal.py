@@ -4,79 +4,30 @@ Terminal interactiva de dui-IA (rich + prompt_toolkit; funciona en Windows, Linu
 
 from __future__ import annotations
 
-import json
 import sys
 from collections.abc import Callable
 from datetime import date, datetime
 from typing import Any
 
 from rich.console import Console
-from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ..agent import Agent, LLMClient, LLMResponse, RunHooks, Runner, Tool, ToolContext, Usage
+from ..agent import Agent, LLMClient, Runner, ToolContext, Usage
 from ..agent.context import select_context
 from ..compat import elevation_hint
 from ..errors import LLMError, ToolError
 from ..security import AuditLog
 from ..storage import Session, SessionNotFound, SessionStore, audit_detail, new_session_id
+from .commands import COMMAND_GROUPS, CommandCompleter, canonical
+from .hooks import YES, TerminalHooks, answer_panel, format_args
+from .symbols import symbols
 
 LEGAL_NOTICE = (
-    "📌 Analizar redes o equipos que no te pertenecen puede ser ilegal. "
+    "Analizar redes o equipos que no te pertenecen puede ser ilegal. "
     "Asegúrate de tener permiso antes de continuar."
 )
-
-COMMANDS: dict[str, str] = {
-    "/help": "Muestra esta ayuda",
-    "/tools": "Lista las herramientas y si están disponibles en este equipo",
-    "/scope": "Muestra el alcance permitido ('/scope add <objetivo>' para ampliarlo)",
-    "/model": "Muestra o cambia el modelo ('/model ollama_chat/llama3.1')",
-    "/status": "Estado del sistema, del modelo y de la sesión",
-    "/cost": "Tokens y costo acumulado de la sesión",
-    "/sessions": "Lista las sesiones guardadas",
-    "/resume": "Continúa la sesión más reciente",
-    "/load": "Carga una sesión: '/load 2' (número de la lista) o '/load 47437b' (parte del ID)",
-    "/search": "Busca en todas las conversaciones: '/search puertos abiertos'",
-    "/history": "Muestra la conversación actual",
-    "/audit": "Muestra la auditoría de la sesión actual",
-    "/rename": "Cambia el título de la sesión actual: '/rename Red de la oficina'",
-    "/export": "Exporta la sesión actual: '/export' (Markdown) o '/export json'",
-    "/delete": "Borra una sesión: '/delete 2' o '/delete 47437b'",
-    "/new": "Empieza una sesión nueva (la actual queda guardada)",
-    "/clear": "Limpia la pantalla",
-    "/exit": "Salir",
-}
-ALIASES = {
-    "/sesiones": "/sessions",
-    "/continuar": "/resume",
-    "/cargar": "/load",
-    "/buscar": "/search",
-    "/historial": "/history",
-    "/auditoria": "/audit",
-    "/auditoría": "/audit",
-    "/renombrar": "/rename",
-    "/exportar": "/export",
-    "/borrar": "/delete",
-    "/ayuda": "/help",
-    "/herramientas": "/tools",
-    "/alcance": "/scope",
-    "/modelo": "/model",
-    "/estado": "/status",
-    "/costo": "/cost",
-    "/nueva": "/new",
-    "/limpiar": "/clear",
-    "/quit": "/exit",
-    "/salir": "/exit",
-}
-
-YES = {"s", "si", "sí", "y", "yes"}
-NO = {"n", "no", ""}
-
-
-def _format_args(arguments: dict[str, Any]) -> str:
-    return ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)}" for k, v in arguments.items())
 
 
 def _human_time(iso: str) -> str:
@@ -93,78 +44,6 @@ def _human_time(iso: str) -> str:
     return f"{moment:%d/%m/%Y %H:%M}"
 
 
-class TerminalHooks(RunHooks):
-    def __init__(self, console: Console, ask: Callable[[str], str]) -> None:
-        self.console = console
-        self.ask = ask
-        self._status: Any = None
-
-    def _start(self, message: str) -> None:
-        self.stop()
-        self._status = self.console.status(message, spinner="dots")
-        self._status.start()
-
-    def stop(self) -> None:
-        if self._status is not None:
-            self._status.stop()
-            self._status = None
-
-    def on_llm_start(self) -> None:
-        self._start("[cyan]Pensando…")
-
-    def on_llm_end(self, response: LLMResponse) -> None:
-        self.stop()
-        # Texto que el modelo escribe antes de usar una herramienta (p. ej. "Voy a escanear...").
-        if response.tool_calls and response.content and response.content.strip():
-            self.console.print(Markdown(response.content.strip()), style="dim")
-
-    def on_llm_error(self) -> None:
-        self.stop()
-
-    def on_tool_start(self, tool: Tool, arguments: dict[str, Any]) -> None:
-        self._start(f"[yellow]Ejecutando {tool.name}…")
-
-    def on_tool_end(self, tool: Tool, arguments: dict[str, Any], result: str, ok: bool) -> None:
-        self.stop()
-        lines = result.splitlines()
-        preview = "\n".join(lines[:15]) + (f"\n… ({len(lines) - 15} líneas más)" if len(lines) > 15 else "")
-        self.console.print(
-            Panel(
-                Text(preview),
-                title=f"🔧 {tool.name}({_format_args(arguments)})",
-                title_align="left",
-                border_style="green" if ok else "red",
-                style="dim",
-            )
-        )
-
-    def confirm(self, tool: Tool, arguments: dict[str, Any]) -> bool:
-        self.stop()
-        body = Table.grid(padding=(0, 1))
-        body.add_row("[bold]Acción:[/]", tool.description.splitlines()[0])
-        body.add_row("[bold]Herramienta:[/]", tool.name)
-        for key, value in arguments.items():
-            body.add_row(f"[bold]{key}:[/]", str(value))
-        if tool.risks:
-            body.add_row("[bold]Riesgos:[/]", "\n".join(f"• {r}" for r in tool.risks))
-        body.add_row("", "[dim]Tu decisión quedará registrada en la auditoría.[/]")
-        self.console.print(
-            Panel(body, title="⚠️  CONFIRMACIÓN REQUERIDA", border_style="yellow", title_align="left")
-        )
-        while True:
-            try:
-                answer = self.ask("¿Deseas continuar? [s/N]: ").strip().lower()
-            except (EOFError, KeyboardInterrupt):
-                answer = "n"
-            if answer in YES:
-                self.console.print("[green]✅ Acción aprobada[/]")
-                return True
-            if answer in NO:
-                self.console.print("[red]❌ Acción cancelada[/]")
-                return False
-            self.console.print("Responde 's' para sí o 'n' para no.")
-
-
 class Terminal:
     def __init__(
         self,
@@ -175,6 +54,8 @@ class Terminal:
         console: Console | None = None,
         input_func: Callable[[str], str] | None = None,
         store: SessionStore | None = None,
+        plain: bool = False,
+        streaming: bool | None = None,
     ) -> None:
         self.agent = agent
         self.llm = llm
@@ -184,8 +65,12 @@ class Terminal:
         self.store = store or audit.store or SessionStore(":memory:")
         self._listing: list[Session] = []  # última lista mostrada, para '/load 2'
         self.console = console or Console()
+        self.sym = symbols(plain)
+        if streaming is None:
+            # Con la salida redirigida a un archivo no tiene sentido redibujar en vivo.
+            streaming = context.settings.stream and self.console.is_terminal
         self._input = input_func or self._build_input()
-        self.hooks = TerminalHooks(self.console, self._plain_input)
+        self.hooks = TerminalHooks(self.console, self._plain_input, self.sym, streaming=streaming)
         self.runner = Runner(
             agent,
             llm,
@@ -203,22 +88,41 @@ class Terminal:
         return self.console.input(prompt)
 
     def _build_input(self) -> Callable[[str], str]:
-        """prompt_toolkit si hay terminal real (historial y autocompletado); si no, input()."""
+        """prompt_toolkit si hay terminal real (historial, autocompletado, barra); si no, input()."""
         if not (sys.stdin.isatty() and sys.stdout.isatty()):
             return self._plain_input
         from prompt_toolkit import PromptSession
-        from prompt_toolkit.completion import WordCompleter
-        from prompt_toolkit.formatted_text import HTML
         from prompt_toolkit.history import FileHistory
 
         history_file = self.context.settings.data_dir / "input_history"
         history_file.parent.mkdir(parents=True, exist_ok=True)
         session: PromptSession[str] = PromptSession(
             history=FileHistory(str(history_file)),
-            completer=WordCompleter([*COMMANDS, *ALIASES], sentence=True),
+            completer=CommandCompleter(),
             complete_while_typing=True,
+            bottom_toolbar=self.toolbar,
         )
-        return lambda _prompt: session.prompt(HTML("<ansicyan><b>dui-IA › </b></ansicyan>"))
+        prompt = [("ansicyan bold", f"dui-IA {self.sym['prompt']} ")]
+        return lambda _prompt: session.prompt(prompt)
+
+    def toolbar(self) -> str:
+        """Barra inferior: modelo, sesión, consumo y privilegios."""
+        sep = f" {self.sym['sep']} "
+        saved = self._saved(self.session_id)
+        title = saved.title if saved else "sesión nueva"
+        if len(title) > 30:
+            title = title[:29] + "…"
+        u = self.usage
+        privileges = "admin" if self.context.system.admin else "usuario"
+        return " " + sep.join(
+            [
+                self.llm.model,
+                title,
+                f"{u.prompt_tokens + u.completion_tokens} tokens ${u.cost:.4f}",
+                privileges,
+                "/help",
+            ]
+        )
 
     # ------------------------------------------------------------------- bucle
 
@@ -230,7 +134,7 @@ class Terminal:
             self.load_session(resume)
         while True:
             try:
-                text = self._input("dui-IA › ").strip()
+                text = self._input(f"dui-IA {self.sym['prompt']} ").strip()
             except KeyboardInterrupt:
                 continue  # Ctrl+C en el prompt solo limpia la línea
             except EOFError:
@@ -264,19 +168,15 @@ class Terminal:
         # Autoguardado: el turno completo (pregunta, herramientas, respuesta) se guarda de una vez.
         self.store.create(self.session_id, self.llm.model)
         self.store.append_messages(self.session_id, result.new_messages, model=self.llm.model)
-        if result.final_output.strip():
-            self.console.print(
-                Panel(
-                    Markdown(result.final_output), title="🤖 dui-IA", title_align="left", border_style="cyan"
-                )
-            )
+        if result.final_output.strip() and not self.hooks.last_streamed:
+            self.console.print(answer_panel(result.final_output, self.sym))
 
     # ---------------------------------------------------------------- comandos
 
     def handle_command(self, text: str) -> bool:
         """Ejecuta un comando. Devuelve False si hay que salir."""
         name, _, arg = text.partition(" ")
-        name = ALIASES.get(name.lower(), name.lower())
+        name = canonical(name)
         arg = arg.strip()
         if name == "/exit":
             return False
@@ -374,8 +274,9 @@ class Terminal:
     def load_session(self, session: Session) -> None:
         self._start_session(session.id, self.store.load_messages(session.id))
         self.console.print(
-            f"[green]✓ Sesión cargada:[/] [bold]{session.title or session.id}[/] "
-            f"· {session.message_count} mensajes · última actividad {_human_time(session.updated_at)}"
+            f"[green]{self.sym['loaded']} Sesión cargada:[/] [bold]{session.title or session.id}[/] "
+            f"{self.sym['sep']} {session.message_count} mensajes {self.sym['sep']} "
+            f"última actividad {_human_time(session.updated_at)}"
         )
         exchanges = [m for m in self.history if m.get("role") in ("user", "assistant") and m.get("content")]
         if exchanges:
@@ -395,7 +296,7 @@ class Terminal:
         if snippets:
             table.add_column("Coincidencia")
         for index, session in enumerate(sessions, 1):
-            marker = " ◀ actual" if session.id == self.session_id else ""
+            marker = f" {self.sym['current']} actual" if session.id == self.session_id else ""
             row = [
                 str(index),
                 session.id,
@@ -409,17 +310,20 @@ class Terminal:
         self.console.print(table)
         self.console.print("[dim]Usa '/load <#>' para continuar una sesión.[/]")
 
+    def _empty(self, message: str) -> None:
+        self.console.print(f"{self.sym['empty']} {message}")
+
     def cmd_sessions(self) -> None:
         sessions = self.store.list(limit=20)
         if not sessions:
-            self.console.print("📭 Todavía no hay sesiones guardadas.")
+            self._empty("Todavía no hay sesiones guardadas.")
             return
         self._session_table(sessions, "Sesiones guardadas")
 
     def cmd_resume(self) -> None:
         session = self.store.latest(exclude=self.session_id)
         if session is None:
-            self.console.print("📭 No hay otra sesión guardada para continuar.")
+            self._empty("No hay otra sesión guardada para continuar.")
             return
         self.load_session(session)
 
@@ -434,7 +338,7 @@ class Terminal:
             return
         hits = self.store.search(query)
         if not hits:
-            self.console.print(f"📭 No se encontró '{query}' en ninguna sesión.")
+            self._empty(f"No se encontró '{query}' en ninguna sesión.")
             return
         self._session_table(
             [h.session for h in hits], f"Resultados para '{query}'", [h.snippet for h in hits]
@@ -442,7 +346,7 @@ class Terminal:
 
     def cmd_history(self) -> None:
         if not self.history:
-            self.console.print("📭 Esta sesión todavía no tiene mensajes.")
+            self._empty("Esta sesión todavía no tiene mensajes.")
             return
         for message in self.history:
             self._print_message(message)
@@ -453,23 +357,23 @@ class Terminal:
         if limit and len(content) > limit:
             content = content[:limit].rstrip() + "…"
         if role == "user":
-            self.console.print(Text("👤 ", style="bold") + Text(content))
+            self.console.print(Text(f"{self.sym['user']} ", style="bold") + Text(content))
         elif role == "assistant":
             for call in message.get("tool_calls") or []:
                 fn = call.get("function", {})
-                self.console.print(f"[dim]   🔧 {fn.get('name')}({fn.get('arguments')})[/]")
+                self.console.print(f"[dim]   {self.sym['tool']} {fn.get('name')}({fn.get('arguments')})[/]")
             if content:
-                self.console.print(Text("🤖 ", style="bold cyan") + Text(content))
+                self.console.print(Text(f"{self.sym['agent']} ", style="bold cyan") + Text(content))
         elif role == "tool" and limit is None:
             first = content.splitlines()[0] if content else ""
-            self.console.print(f"[dim]   ↳ {message.get('name')}: {first[:100]}[/]")
+            self.console.print(f"[dim]   {self.sym['result']} {message.get('name')}: {first[:100]}[/]")
 
     def cmd_audit(self) -> None:
         events = self.audit.events
         if not events:
-            self.console.print("📭 Sin acciones registradas en esta sesión.")
+            self._empty("Sin acciones registradas en esta sesión.")
             return
-        table = Table(title=f"Auditoría · {self.session_id}")
+        table = Table(title=f"Auditoría {self.sym['sep']} {self.session_id}")
         for column in ("Hora", "Evento", "Herramienta", "Argumentos", "Detalle"):
             table.add_column(column)
         for e in events:
@@ -478,7 +382,7 @@ class Terminal:
                 e["timestamp"][11:19],
                 e["event"],
                 e.get("tool", ""),
-                _format_args(args) if isinstance(args, dict) else "",
+                format_args(args) if isinstance(args, dict) else "",
                 audit_detail(e),
             )
         self.console.print(table)
@@ -488,7 +392,7 @@ class Terminal:
             self.console.print("[red]Uso: /rename <título nuevo>[/]")
             return
         if not self._saved(self.session_id):
-            self.console.print("📭 Escribe algo primero: las sesiones vacías no se guardan.")
+            self._empty("Escribe algo primero: las sesiones vacías no se guardan.")
             return
         self.store.rename(self.session_id, title)
         self.console.print(f"[green]Sesión renombrada: {title}[/]")
@@ -499,7 +403,7 @@ class Terminal:
             self.console.print("[red]Formato no soportado. Usa '/export' (Markdown) o '/export json'.[/]")
             return
         if not self._saved(self.session_id):
-            self.console.print("📭 Esta sesión todavía no tiene mensajes para exportar.")
+            self._empty("Esta sesión todavía no tiene mensajes para exportar.")
             return
         is_json = fmt == "json"
         text = (
@@ -535,18 +439,26 @@ class Terminal:
 
     def show_banner(self) -> None:
         system = self.context.system
+        sep = self.sym["sep"]
         info = Table.grid(padding=(0, 1))
         info.add_row("[bold]Modelo:[/]", self.llm.model)
-        info.add_row("[bold]Sistema:[/]", f"{system.os_label} {system.os_version} · usuario {system.user}")
+        info.add_row(
+            "[bold]Sistema:[/]", f"{system.os_label} {system.os_version} {sep} usuario {system.user}"
+        )
         privileges = "[green]administrador/root[/]" if system.admin else "[yellow]usuario normal[/]"
         info.add_row("[bold]Privilegios:[/]", privileges)
         info.add_row("[bold]Alcance:[/]", self.context.scope.describe())
         self.console.print(
-            Panel(info, title="🛡️  dui-IA · Agente de ciberseguridad", border_style="cyan", title_align="left")
+            Panel(
+                info,
+                title=f"{self.sym['app']} dui-IA {sep} Agente de ciberseguridad".strip(),
+                border_style="cyan",
+                title_align="left",
+            )
         )
         if not system.admin:
             self.console.print(f"[dim]Algunas herramientas necesitan privilegios. {elevation_hint()}[/]")
-        self.console.print(f"[yellow]{LEGAL_NOTICE}[/]")
+        self.console.print(f"[yellow]{self.sym['note']} {LEGAL_NOTICE}[/]")
         previous = self.store.latest(exclude=self.session_id)
         if previous is not None and not self.history:
             self.console.print(
@@ -556,15 +468,19 @@ class Terminal:
         self.console.print("[dim]Escribe tu pregunta, /help para ver comandos o /exit para salir.[/]\n")
 
     def show_help(self) -> None:
-        table = Table(title="Comandos", show_header=False, box=None)
-        for command, description in COMMANDS.items():
-            table.add_row(f"[cyan]{command}[/]", description)
-        self.console.print(table)
+        for group, commands in COMMAND_GROUPS.items():
+            table = Table(title=group, title_justify="left", show_header=False, box=None, padding=(0, 2))
+            for command, description in commands.items():
+                table.add_row(f"[cyan]{command}[/]", description)
+            self.console.print(table)
+        b = self.sym["bullet"]
         self.console.print(
             "\n[bold]Ejemplos:[/]\n"
-            "  • ¿Quién registró el dominio example.com?\n"
-            "  • ¿Qué servidores de correo usa gmail.com?\n"
-            "  • ¿A quién pertenece la IP 8.8.8.8?\n"
+            f"  {b} ¿Quién registró el dominio example.com?\n"
+            f"  {b} ¿Qué servidores de correo usa gmail.com?\n"
+            f"  {b} ¿A quién pertenece la IP 8.8.8.8?\n"
+            "\n[dim]Tab autocompleta comandos · ↑/↓ recorre lo que escribiste · "
+            "Ctrl+C cancela una respuesta · Ctrl+D sale[/]"
         )
 
     def show_tools(self) -> None:
@@ -575,33 +491,40 @@ class Terminal:
         table.add_column("Disponible")
         for t in self.agent.tools:
             availability = t.availability()
-            status = "✅" if availability.ok else f"❌ {availability.detail}"
+            status = self.sym["ok"] if availability.ok else f"{self.sym['fail']} {availability.detail}"
             table.add_row(t.name, t.category, "sí" if t.sensitive else "no", status)
         self.console.print(table)
 
     def show_status(self) -> None:
         system = self.context.system
+        sep = self.sym["sep"]
         summary = self.audit.summary()
         table = Table.grid(padding=(0, 1))
         saved = self._saved(self.session_id)
-        table.add_row("[bold]Sesión:[/]", self.session_id + (f" · {saved.title}" if saved else " (nueva)"))
+        table.add_row(
+            "[bold]Sesión:[/]", self.session_id + (f" {sep} {saved.title}" if saved else " (nueva)")
+        )
         table.add_row("[bold]Modelo:[/]", self.llm.model)
-        table.add_row("[bold]Sistema:[/]", f"{system.os_label} {system.os_version} · Python {system.python}")
+        table.add_row(
+            "[bold]Sistema:[/]", f"{system.os_label} {system.os_version} {sep} Python {system.python}"
+        )
         table.add_row("[bold]Privilegios:[/]", "administrador/root" if system.admin else "usuario normal")
         table.add_row("[bold]Mensajes en contexto:[/]", str(len(self.history)))
         table.add_row("[bold]Acciones ejecutadas:[/]", str(summary["total_actions"]))
         table.add_row(
             "[bold]Confirmaciones:[/]",
-            f"{summary['approvals']} aprobadas · {summary['rejections']} rechazadas",
+            f"{summary['approvals']} aprobadas {sep} {summary['rejections']} rechazadas",
         )
+        table.add_row("[bold]Streaming:[/]", "activado" if self.hooks.streaming else "desactivado")
         table.add_row("[bold]Datos:[/]", str(self.context.settings.data_dir))
         table.add_row("[bold]Base de datos:[/]", str(self.store.path))
         self.console.print(Panel(table, title="Estado", title_align="left"))
 
     def show_cost(self) -> None:
         u = self.usage
+        sep = self.sym["sep"]
         self.console.print(
-            f"Tokens: {u.prompt_tokens} de entrada · {u.completion_tokens} de salida · "
+            f"Tokens: {u.prompt_tokens} de entrada {sep} {u.completion_tokens} de salida {sep} "
             f"costo estimado: ${u.cost:.6f}"
         )
 
@@ -609,12 +532,13 @@ class Terminal:
         summary = self.audit.summary()
         if summary["total_actions"]:
             self.console.print(
-                f"\n📊 Acciones realizadas: {summary['total_actions']} · "
+                f"\n{self.sym['stats']} Acciones realizadas: {summary['total_actions']} {self.sym['sep']} "
                 f"herramientas: {', '.join(summary['tools_used'])}"
             )
         if self._saved(self.session_id):
             self.console.print(
-                f"💾 Sesión guardada: {self.session_id} · retómala con 'dui-ia --resume' o '/load'"
+                f"{self.sym['saved']} Sesión guardada: {self.session_id} {self.sym['sep']} "
+                "retómala con 'dui-ia --resume' o '/load'"
             )
         self.store.delete_empty()
         self.console.print("[cyan]¡Hasta pronto! Gracias por usar dui-IA.[/]")

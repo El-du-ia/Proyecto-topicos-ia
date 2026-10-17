@@ -33,6 +33,15 @@ def _first(env: Mapping[str, str], *names: str) -> str | None:
     return None
 
 
+def _bool(value: str) -> bool:
+    lowered = value.strip().lower()
+    if lowered in ("1", "true", "si", "sí", "yes", "on"):
+        return True
+    if lowered in ("0", "false", "no", "off"):
+        return False
+    raise ValueError(f"Valor no válido '{value}': usa 1/0, true/false o si/no.")
+
+
 def _split_list(value: str | None) -> list[str]:
     if not value:
         return []
@@ -47,6 +56,10 @@ class Settings:
     max_turns: int = 20
     # Máximo de mensajes anteriores que se envían al modelo (las sesiones largas se recortan).
     max_history: int = 60
+    # Mostrar la respuesta a medida que llega.
+    stream: bool = True
+    # Interfaz sin emojis (se activa sola en la consola clásica de Windows).
+    ascii: bool = False
     # Objetivos que se pueden analizar de forma activa. Vacío = solo redes privadas.
     scope: list[str] = field(default_factory=list)
     data_dir: Path = field(default_factory=lambda: Path(user_data_dir(APP_NAME, appauthor=False)))
@@ -81,6 +94,10 @@ class Settings:
             settings.max_turns = int(max_turns)
         if max_history := _first(env, "DUI_MAX_HISTORY"):
             settings.max_history = int(max_history)
+        if (stream := _first(env, "DUI_STREAM")) is not None:
+            settings.stream = _bool(stream)
+        if (ascii_mode := _first(env, "DUI_ASCII")) is not None:
+            settings.ascii = _bool(ascii_mode)
         settings.scope = _split_list(_first(env, "DUI_SCOPE"))
         if data_dir := _first(env, "DUI_DATA_DIR"):
             settings.data_dir = Path(data_dir).expanduser()

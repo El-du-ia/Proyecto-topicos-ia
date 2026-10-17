@@ -14,6 +14,7 @@ import json
 import os
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -62,10 +63,21 @@ class LLMResponse:
         return message
 
 
+TextCallback = Callable[[str], None]
+
+
 class LLMClient(Protocol):
     model: str
 
-    def complete(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> LLMResponse: ...
+    def complete(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        on_text: TextCallback | None = None,
+    ) -> LLMResponse:
+        """Si se pasa `on_text`, la respuesta se recibe en streaming y cada fragmento de texto
+        se entrega en cuanto llega. El resultado final es el mismo en ambos modos."""
+        ...
 
 
 class LiteLLMClient:
@@ -96,7 +108,12 @@ class LiteLLMClient:
         litellm.suppress_debug_info = True
         return litellm
 
-    def complete(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> LLMResponse:
+    def complete(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        on_text: TextCallback | None = None,
+    ) -> LLMResponse:
         litellm = self._litellm()
         kwargs: dict[str, Any] = {
             "model": self.model,
@@ -111,13 +128,28 @@ class LiteLLMClient:
         if self.temperature is not None:
             kwargs["temperature"] = self.temperature
 
+        if on_text is not None:
+            kwargs["stream"] = True
+            kwargs["stream_options"] = {"include_usage": True}
+
         attempt = 0
+        emitted = False
         while True:
             try:
-                response = litellm.completion(**kwargs)
+                if on_text is None:
+                    response = litellm.completion(**kwargs)
+                else:
+
+                    def emit(delta: str) -> None:
+                        nonlocal emitted
+                        emitted = True
+                        on_text(delta)
+
+                    response = self._stream(litellm, kwargs, emit)
                 break
             except Exception as exc:
-                if attempt < self.retries and _is_transient(exc):
+                # Si ya se mostró texto al usuario, reintentar lo duplicaría: se informa el error.
+                if attempt < self.retries and _is_transient(exc) and not emitted:
                     self._sleep(self.retry_delay * 2**attempt)
                     attempt += 1
                     continue
@@ -141,6 +173,21 @@ class LiteLLMClient:
         except Exception:  # modelos locales o sin precio conocido
             usage.cost = 0.0
         return LLMResponse(content=message.content, tool_calls=tool_calls, usage=usage)
+
+    @staticmethod
+    def _stream(litellm: Any, kwargs: dict[str, Any], emit: TextCallback) -> Any:
+        """Recibe la respuesta por fragmentos y la reconstruye completa (texto, tool calls y uso)."""
+        chunks = []
+        for chunk in litellm.completion(**kwargs):
+            chunks.append(chunk)
+            if chunk.choices:
+                delta = getattr(chunk.choices[0].delta, "content", None)
+                if delta:
+                    emit(delta)
+        response = litellm.stream_chunk_builder(chunks, messages=kwargs["messages"])
+        if response is None:
+            raise LLMError("El modelo no devolvió ninguna respuesta.")
+        return response
 
 
 _TRANSIENT_ERRORS = {"ServiceUnavailableError", "RateLimitError", "InternalServerError", "Timeout"}

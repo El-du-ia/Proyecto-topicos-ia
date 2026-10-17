@@ -2,6 +2,21 @@
 
 ## 2.0.0.dev0 (en desarrollo, rama `v2`)
 
+### Fase 4: terminal
+
+**Agregado**
+- Respuestas en streaming (`DUI_STREAM`, `--no-stream`), también con llamadas a herramientas.
+- Barra de estado con modelo, sesión, tokens, costo y privilegios.
+- Modo sin emojis (`--ascii`, `DUI_ASCII`), automático en la consola clásica de Windows. El
+  modelo recibe la instrucción de no usar emojis.
+- Autocompletado de comandos con descripción; ayuda agrupada con atajos de teclado.
+
+**Cambiado**
+- La terminal se dividió en `terminal.py`, `hooks.py`, `commands.py` y `symbols.py`.
+- `LLMClient.complete()` acepta `on_text` para recibir el texto en streaming.
+
+112 pruebas.
+
 ### Fase 3: sesiones persistentes
 
 **Agregado**

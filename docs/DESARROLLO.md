@@ -47,7 +47,8 @@ src/dui/
   security/        scope.py (alcance), audit.py (auditoría)
   storage/         sessions.py (SQLite: sesiones, mensajes, auditoría, búsqueda)
   tools/           herramientas de ciberseguridad
-  ui/              terminal
+  ui/              terminal.py (bucle y comandos), hooks.py (streaming, confirmación),
+                   commands.py (catálogo y autocompletado), symbols.py (emoji/ASCII)
 tests/             pytest (helpers.py tiene el FakeLLM)
 legacy/            código v1, solo como referencia (se eliminará)
 ```
