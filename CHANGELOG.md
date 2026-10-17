@@ -8,6 +8,10 @@
   fuente ASCII). En terminales angostas se muestra solo el nombre.
 - Panel "Listo para ayudarte" con modelo, sistema, privilegios, alcance, herramientas
   disponibles, sesión y tres preguntas de ejemplo para empezar.
+- Al cargar una sesión (`/load`, `/resume`, `--resume`) la conversación se vuelve a dibujar
+  con el mismo estilo que en vivo: la pregunta con el prompt, los paneles de herramientas
+  (verde/rojo), las acciones canceladas y las respuestas en Markdown. Se muestran los
+  últimos 5 turnos; `/history` muestra toda la conversación con el mismo estilo.
 
 ### Herramientas del propio equipo y corrección del streaming
 

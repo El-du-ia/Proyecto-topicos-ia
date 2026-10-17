@@ -26,6 +26,19 @@ def format_args(arguments: dict[str, Any]) -> str:
     return ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)}" for k, v in arguments.items())
 
 
+def tool_panel(name: str, arguments: dict[str, Any], result: str, ok: bool, sym: dict[str, str]) -> Panel:
+    """Resultado de una herramienta (en vivo y al reproducir una sesión guardada)."""
+    lines = result.splitlines()
+    preview = "\n".join(lines[:15]) + (f"\n… ({len(lines) - 15} líneas más)" if len(lines) > 15 else "")
+    return Panel(
+        Text(preview),
+        title=f"{sym['tool']} {name}({format_args(arguments)})",
+        title_align="left",
+        border_style="green" if ok else "red",
+        style="dim",
+    )
+
+
 def answer_panel(text: str, sym: dict[str, str]) -> Panel:
     return Panel(Markdown(text), title=f"{sym['agent']} dui-IA", title_align="left", border_style="cyan")
 
@@ -123,17 +136,7 @@ class TerminalHooks(RunHooks):
 
     def on_tool_end(self, tool: Tool, arguments: dict[str, Any], result: str, ok: bool) -> None:
         self.stop()
-        lines = result.splitlines()
-        preview = "\n".join(lines[:15]) + (f"\n… ({len(lines) - 15} líneas más)" if len(lines) > 15 else "")
-        self.console.print(
-            Panel(
-                Text(preview),
-                title=f"{self.sym['tool']} {tool.name}({format_args(arguments)})",
-                title_align="left",
-                border_style="green" if ok else "red",
-                style="dim",
-            )
-        )
+        self.console.print(tool_panel(tool.name, arguments, result, ok, self.sym))
 
     def confirm(self, tool: Tool, arguments: dict[str, Any]) -> bool:
         self.stop()

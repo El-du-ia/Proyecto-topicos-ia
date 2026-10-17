@@ -304,3 +304,15 @@ def test_banner_falls_back_to_name_on_narrow_terminals(context):
     terminal.run()
     text = out(terminal)
     assert "|____/" not in text and "dui-IA" in text
+
+
+def test_readme_logo_matches_the_app():
+    """El logo del README se copió del programa: si cambia uno, hay que cambiar el otro."""
+    from pathlib import Path
+
+    from dui.ui.banner import logo
+
+    readme = (Path(__file__).parent.parent / "README.md").read_text(encoding="utf-8")
+    assert "\n".join(logo()) in readme
+    image = Path(__file__).parent.parent / "docs" / "img" / "imagen ejemplo.png"
+    assert image.is_file() and "docs/img/imagen%20ejemplo.png" in readme

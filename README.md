@@ -1,8 +1,27 @@
 # dui-IA · Agente inteligente de ciberseguridad 🛡️
 
+```text
+██████╗ ██╗   ██╗██╗      ██╗ █████╗
+██╔══██╗██║   ██║██║      ██║██╔══██╗
+██║  ██║██║   ██║██║█████╗██║███████║
+██║  ██║██║   ██║██║╚════╝██║██╔══██║
+██████╔╝╚██████╔╝██║      ██║██║  ██║
+╚═════╝  ╚═════╝ ╚═╝      ╚═╝╚═╝  ╚═╝
+   Agente inteligente de ciberseguridad
+```
+
 Asistente de ciberseguridad para personas **sin conocimientos técnicos**: ejecuta
 herramientas de análisis, **pide confirmación antes de cualquier acción sensible**
 y **explica los resultados en lenguaje simple**.
+
+## Así se ve
+
+![Pantalla de inicio de dui-IA en PowerShell: logo DUI-IA en letras grandes, panel con modelo, sistema, privilegios, alcance, herramientas disponibles y preguntas de ejemplo](docs/img/imagen%20ejemplo.png)
+
+Al iniciar se muestran el modelo en uso, el sistema, los privilegios, el alcance
+permitido, cuántas herramientas están disponibles en el equipo y algunas preguntas de
+ejemplo para empezar. En consolas que no muestran bien estos caracteres (o con
+`--ascii`), el logo se dibuja solo con caracteres ASCII.
 
 > **v2 en desarrollo** (rama `v2`). Ya no depende de CAI: conserva su
 > arquitectura (Agente → Runner → Herramientas) con un núcleo propio,
@@ -100,9 +119,9 @@ herramientas, así que al reanudar el agente recuerda lo que encontró.
 |---|---|
 | `/sessions` | Lista las sesiones guardadas |
 | `/resume` | Continúa la sesión más reciente |
-| `/load <#\|ID>` | Carga una sesión por su número en la lista o por parte del ID |
+| `/load <#\|ID>` | Carga una sesión por su número o parte del ID y vuelve a mostrar sus últimos 5 turnos tal como se vieron |
 | `/search <texto>` | Busca en todas las conversaciones (sin distinguir acentos ni mayúsculas) |
-| `/history` | Muestra la conversación actual |
+| `/history` | Muestra la conversación actual completa, con el mismo estilo que en vivo |
 | `/audit` | Confirmaciones y ejecuciones registradas en esta sesión |
 | `/rename <título>` | Cambia el título (por defecto, la primera pregunta) |
 | `/export [json]` | Exporta la sesión a Markdown o JSON |

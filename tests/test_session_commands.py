@@ -108,7 +108,7 @@ def test_search_rename_history_audit_and_export(context, store):
     text = out(terminal)
     assert store.get("s_actual").title == "Revisión de ejemplo.mx"
     assert "Resultados para 'legítimo'" in text and "«legítimo»" in text
-    assert "👤 revisa el dominio ejemplo.mx" in text
+    assert "dui-IA › revisa el dominio ejemplo.mx" in text
     assert "Sin acciones registradas" in text
     exports = sorted(p.name for p in context.settings.exports_path.iterdir())
     assert exports == ["sesion_s_actual.json", "sesion_s_actual.md"]
@@ -155,3 +155,62 @@ def test_cli_resume_flags(tmp_path, monkeypatch, capsys):
     assert "No existe ninguna sesión" in capsys.readouterr().out
     assert main(["--resume"]) == 0
     assert "No hay sesiones guardadas" in capsys.readouterr().out
+
+
+def test_loaded_session_is_replayed_with_live_style(context, store):
+    """Al cargar una sesión se ve igual que cuando estaba abierta: prompt, paneles y respuestas."""
+    from dui.agent.runner import REJECTED_MESSAGE
+
+    def call(call_id, name, args):
+        return {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {"id": call_id, "type": "function", "function": {"name": name, "arguments": args}}
+            ],
+        }
+
+    messages = [
+        {"role": "user", "content": "¿qué servidores de correo usa gmail.com?"},
+        call("c1", "dns_lookup", '{"domain": "gmail.com", "record_type": "MX"}'),
+        {
+            "role": "tool",
+            "tool_call_id": "c1",
+            "name": "dns_lookup",
+            "content": "5 gmail-smtp-in.l.google.com.",
+        },
+        {"role": "assistant", "content": "Gmail usa **cinco** servidores de correo."},
+        {"role": "user", "content": "revisa mis conexiones"},
+        call("c2", "local_connections", '{"state": "todas"}'),
+        {"role": "tool", "tool_call_id": "c2", "name": "local_connections", "content": REJECTED_MESSAGE},
+        {"role": "assistant", "content": "De acuerdo, no reviso las conexiones."},
+    ]
+    store.create("s_vieja")
+    store.append_messages("s_vieja", messages)
+    terminal, inputs = make(context, store, [])
+    inputs.answers = ["/load s_vieja", "/exit"]
+    terminal.run()
+    text = out(terminal)
+    assert "Conversación anterior" in text and "Continúa aquí" in text
+    assert "dui-IA › ¿qué servidores de correo usa gmail.com?" in text  # pregunta con el prompt
+    assert '🔧 dns_lookup(domain="gmail.com", record_type="MX")' in text  # panel de herramienta
+    assert "gmail-smtp-in.l.google.com" in text
+    assert "🤖 dui-IA" in text and "Gmail usa cinco servidores" in text  # Markdown renderizado (sin **)
+    assert "Acción cancelada" in text and "local_connections" in text  # rechazo como en vivo
+
+
+def test_long_session_replay_shows_only_last_turns(context, store):
+    messages = []
+    for i in range(12):
+        messages += [
+            {"role": "user", "content": f"pregunta {i}"},
+            {"role": "assistant", "content": f"respuesta {i}"},
+        ]
+    store.create("s_larga")
+    store.append_messages("s_larga", messages)
+    terminal, inputs = make(context, store, [])
+    inputs.answers = ["/load s_larga", "/exit"]
+    terminal.run()
+    text = out(terminal)
+    assert "7 turno(s) anteriores ocultos" in text
+    assert "pregunta 11" in text and "pregunta 7" in text and "pregunta 6" not in text

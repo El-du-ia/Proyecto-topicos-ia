@@ -4,27 +4,34 @@ Terminal interactiva de dui-IA (rich + prompt_toolkit; funciona en Windows, Linu
 
 from __future__ import annotations
 
+import json
 import sys
 from collections.abc import Callable
 from datetime import date, datetime
 from typing import Any
 
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.panel import Panel
+from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
 from .. import __version__
 from ..agent import Agent, LLMClient, Runner, ToolContext, Usage
 from ..agent.context import select_context
+from ..agent.runner import REJECTED_MESSAGE
 from ..compat import elevation_hint
 from ..errors import LLMError, ToolError
 from ..security import AuditLog
 from ..storage import Session, SessionNotFound, SessionStore, audit_detail, new_session_id
 from .banner import render_banner
 from .commands import COMMAND_GROUPS, CommandCompleter, canonical
-from .hooks import YES, TerminalHooks, answer_panel, format_args
+from .hooks import YES, TerminalHooks, answer_panel, format_args, tool_panel
 from .symbols import symbols
+
+# Turnos de una sesión anterior que se vuelven a mostrar al cargarla (/history muestra todos).
+REPLAY_TURNS = 5
 
 LEGAL_NOTICE = (
     "Analizar redes o equipos que no te pertenecen puede ser ilegal. "
@@ -281,12 +288,56 @@ class Terminal:
             f"{self.sym['sep']} {session.message_count} mensajes {self.sym['sep']} "
             f"última actividad {_human_time(session.updated_at)}"
         )
-        exchanges = [m for m in self.history if m.get("role") in ("user", "assistant") and m.get("content")]
-        if exchanges:
-            self.console.print("[dim]Últimos mensajes:[/]")
-            for message in exchanges[-4:]:
-                self._print_message(message, limit=160)
+        if self.history:
+            self.console.print(Rule("Conversación anterior", style="dim"))
+            self.replay(self.history, max_turns=REPLAY_TURNS)
+            self.console.print(Rule("Continúa aquí", style="dim"))
         self.console.print("[dim]Puedes continuar la conversación donde la dejaste.[/]\n")
+
+    def replay(self, messages: list[dict[str, Any]], max_turns: int | None = None) -> None:
+        """Vuelve a dibujar una conversación guardada con el mismo estilo que en vivo:
+        el prompt con la pregunta, los paneles de herramientas y las respuestas en Markdown."""
+        turns: list[list[dict[str, Any]]] = []
+        for message in messages:
+            if message.get("role") == "user" or not turns:
+                turns.append([])
+            turns[-1].append(message)
+        hidden = len(turns) - max_turns if max_turns and len(turns) > max_turns else 0
+        if hidden:
+            self.console.print(
+                f"[dim]… {hidden} turno(s) anteriores ocultos {self.sym['sep']} "
+                "/history muestra la conversación completa[/]\n"
+            )
+        results = {m.get("tool_call_id"): m for m in messages if m.get("role") == "tool"}
+        for turn in turns[hidden:]:
+            for message in turn:
+                self._replay_message(message, results)
+
+    def _replay_message(self, message: dict[str, Any], results: dict[Any, dict[str, Any]]) -> None:
+        role = message.get("role")
+        content = str(message.get("content") or "").strip()
+        if role == "user":
+            self.console.print(Text.assemble((f"dui-IA {self.sym['prompt']} ", "bold cyan"), content))
+        elif role == "assistant" and message.get("tool_calls"):
+            if content:  # lo que el modelo dijo antes de usar la herramienta
+                self.console.print(Markdown(content), style="dim")
+            for call in message["tool_calls"]:
+                fn = call.get("function", {})
+                name = fn.get("name", "?")
+                try:
+                    arguments = json.loads(fn.get("arguments") or "{}")
+                except ValueError:
+                    arguments = {}
+                result = str((results.get(call.get("id")) or {}).get("content") or "(sin resultado guardado)")
+                if result == REJECTED_MESSAGE:
+                    self.console.print(f"[red]{self.sym['fail']} Acción cancelada[/] [dim]({name})[/]")
+                    continue
+                ok = not result.startswith(("Error", "La herramienta"))
+                self.console.print(
+                    tool_panel(name, arguments if isinstance(arguments, dict) else {}, result, ok, self.sym)
+                )
+        elif role == "assistant" and content:
+            self.console.print(answer_panel(content, self.sym))
 
     def _session_table(self, sessions: list[Session], title: str, snippets: list[str] | None = None) -> None:
         self._listing = sessions
@@ -351,25 +402,7 @@ class Terminal:
         if not self.history:
             self._empty("Esta sesión todavía no tiene mensajes.")
             return
-        for message in self.history:
-            self._print_message(message)
-
-    def _print_message(self, message: dict[str, Any], limit: int | None = None) -> None:
-        role = message.get("role")
-        content = str(message.get("content") or "").strip()
-        if limit and len(content) > limit:
-            content = content[:limit].rstrip() + "…"
-        if role == "user":
-            self.console.print(Text(f"{self.sym['user']} ", style="bold") + Text(content))
-        elif role == "assistant":
-            for call in message.get("tool_calls") or []:
-                fn = call.get("function", {})
-                self.console.print(f"[dim]   {self.sym['tool']} {fn.get('name')}({fn.get('arguments')})[/]")
-            if content:
-                self.console.print(Text(f"{self.sym['agent']} ", style="bold cyan") + Text(content))
-        elif role == "tool" and limit is None:
-            first = content.splitlines()[0] if content else ""
-            self.console.print(f"[dim]   {self.sym['result']} {message.get('name')}: {first[:100]}[/]")
+        self.replay(self.history)
 
     def cmd_audit(self) -> None:
         events = self.audit.events
