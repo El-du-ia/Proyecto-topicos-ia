@@ -45,6 +45,8 @@ class Settings:
     api_base: str | None = None
     temperature: float | None = None
     max_turns: int = 20
+    # Máximo de mensajes anteriores que se envían al modelo (las sesiones largas se recortan).
+    max_history: int = 60
     # Objetivos que se pueden analizar de forma activa. Vacío = solo redes privadas.
     scope: list[str] = field(default_factory=list)
     data_dir: Path = field(default_factory=lambda: Path(user_data_dir(APP_NAME, appauthor=False)))
@@ -55,8 +57,13 @@ class Settings:
         return self.reports_dir or self.data_dir / "reports"
 
     @property
-    def audit_path(self) -> Path:
-        return self.data_dir / "audit"
+    def db_path(self) -> Path:
+        """Base de datos con sesiones, mensajes y auditoría."""
+        return self.data_dir / "dui.db"
+
+    @property
+    def exports_path(self) -> Path:
+        return self.data_dir / "exports"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None, load_env_file: bool = True) -> Settings:
@@ -72,6 +79,8 @@ class Settings:
             settings.temperature = float(temperature)
         if max_turns := _first(env, "DUI_MAX_TURNS"):
             settings.max_turns = int(max_turns)
+        if max_history := _first(env, "DUI_MAX_HISTORY"):
+            settings.max_history = int(max_history)
         settings.scope = _split_list(_first(env, "DUI_SCOPE"))
         if data_dir := _first(env, "DUI_DATA_DIR"):
             settings.data_dir = Path(data_dir).expanduser()

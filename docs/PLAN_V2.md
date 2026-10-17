@@ -40,6 +40,8 @@
 - [x] Herramientas pasivas migradas y mejoradas: DNS (más tipos de registro), DNS inverso
       (IPv6), WHOIS por RDAP con respaldo por el puerto 43 (sin binario `whois`)
 - [x] Reportes en Markdown
+- [x] Reintentos con espera creciente ante errores pasajeros del proveedor (503, límites)
+- [x] Probado con Gemini real en Windows
 
 ### ⏳ Fase 2 · Plataforma y herramientas activas
 - [ ] `network_interfaces`: interfaces de red (psutil + scapy)
@@ -52,12 +54,19 @@
       p. ej. 4625 = inicio de sesión fallido), con el mismo formato de salida
 - [ ] Restricción de rutas de escritura y lectura
 
-### ⏳ Fase 3 · Sesiones persistentes
-- [ ] SQLite en la carpeta de datos: `sessions`, `messages` (incluidos los mensajes de
-      herramientas) y `audit`
-- [ ] Autoguardado por turno, `/resume`, `/sessions`, `/load`, `/rename`, `/delete`, `/export`
-- [ ] `/search` sobre todo el contenido (FTS5)
-- [ ] Recorte o resumen del contexto en sesiones largas
+### ✅ Fase 3 · Sesiones persistentes
+- [x] SQLite (`<datos>/dui.db`): `sessions`, `messages` (mensaje completo, incluidas las
+      llamadas a herramientas y sus resultados) y `audit`; borrado en cascada
+- [x] Auditoría en la misma base (se eliminó el JSONL: una sola fuente de verdad)
+- [x] Autoguardado atómico por turno; título automático tomado de la primera pregunta
+- [x] `/sessions`, `/resume`, `/load` (por número o parte del ID), `/rename`, `/delete`
+      (con confirmación), `/export` (Markdown/JSON), `/history`, `/audit`
+- [x] `dui-ia --resume` y `--session <ID>`; el banner ofrece retomar la última sesión
+- [x] `/search` de texto completo con FTS5 (sin distinguir acentos ni mayúsculas), con
+      respaldo en LIKE si SQLite no trae FTS5
+- [x] Recorte del contexto en sesiones largas (`DUI_MAX_HISTORY`) sin separar una llamada
+      a herramienta de su resultado
+- [ ] Resumen automático de lo recortado (por ahora solo se recorta)
 
 ### ⏳ Fase 4 · Terminal
 - [ ] Respuestas en streaming

@@ -43,8 +43,9 @@ src/dui/
   config.py        Settings desde .env / variables DUI_*
   compat.py        diferencias entre sistemas operativos
   errors.py        excepciones comunes
-  agent/           núcleo: tools.py, runner.py, llm.py, agent.py, prompts.py
+  agent/           núcleo: tools.py, runner.py, llm.py, agent.py, prompts.py, context.py
   security/        scope.py (alcance), audit.py (auditoría)
+  storage/         sessions.py (SQLite: sesiones, mensajes, auditoría, búsqueda)
   tools/           herramientas de ciberseguridad
   ui/              terminal
 tests/             pytest (helpers.py tiene el FakeLLM)
@@ -95,6 +96,13 @@ Reglas:
 - Todo lo que **toque la red de otros o requiera privilegios** es `sensitive=True` y
   valida el objetivo con `ctx.scope`.
 - Devuelve texto claro; los errores esperados se lanzan como `ToolError`.
+
+## Cambios en la base de datos
+
+El esquema está en `storage/sessions.py` (`SCHEMA` y `SCHEMA_VERSION`, guardado en
+`PRAGMA user_version`). Si agregas una columna o tabla, sube `SCHEMA_VERSION` y escribe
+la migración en `_migrate()`, para que las bases que ya tienen los usuarios se actualicen
+sin perder sesiones. Las pruebas usan una base temporal (`tmp_path`) o `":memory:"`.
 
 ## Probar con un modelo real
 

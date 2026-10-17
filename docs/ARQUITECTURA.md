@@ -25,6 +25,7 @@ unas pocas centenas de líneas que controlamos por completo.
                               │ Tool.invoke(args, ctx)
 ┌─────────────────────────────▼────────────────────────────────────┐
 │ tools/        recon.py (DNS, WHOIS) · reports.py · …             │
+│ storage/      sessions.py: SQLite (sesiones, mensajes, auditoría)│
 │ compat.py     SO, privilegios, binarios, consejos por sistema    │
 │ config.py     Settings (.env / variables DUI_*)                  │
 └──────────────────────────────────────────────────────────────────┘
@@ -63,8 +64,34 @@ unas pocas centenas de líneas que controlamos por completo.
   Un dominio permitido incluye sus subdominios. Un nombre se permite solo si
   **todas** sus IPs están en el alcance. Rechaza objetivos que parecen opciones
   (`-iL`) o caracteres de shell.
-- `AuditLog`: una línea JSON por evento (`confirmation`, `tool_execution`,
-  `tool_blocked`, `scope_added`) en `<datos>/audit/<sesión>.jsonl`.
+- `AuditLog`: un registro por evento (`confirmation`, `tool_execution`, `tool_blocked`,
+  `scope_added`) en la tabla `audit` de la sesión actual. Sin base de datos (pruebas),
+  queda en memoria.
+
+### `storage/sessions.py`: sesiones (SQLite)
+- Un solo archivo, `<datos>/dui.db`, con `sqlite3` de la biblioteca estándar (igual en todos
+  los sistemas). Modo WAL y claves foráneas con `ON DELETE CASCADE`.
+- `messages.payload` guarda cada mensaje **completo** en formato OpenAI (incluidos
+  `tool_calls` y los mensajes `tool`), así que al reanudar el modelo ve exactamente lo
+  mismo que antes.
+- Cada turno (pregunta → herramientas → respuesta) se guarda en **una transacción**: o se
+  guarda entero o no se guarda nada.
+- `messages_fts` (FTS5, `remove_diacritics`) indexa el texto para `/search`; lo mantienen
+  triggers. Si SQLite no trae FTS5, se busca con `LIKE`.
+- Las sesiones sin mensajes no se listan y se eliminan al salir (salvo que tengan auditoría).
+
+```
+sessions(id, title, model, created_at, updated_at, message_count)
+messages(id, session_id → sessions, seq, role, content, payload JSON, created_at)
+audit(id, session_id → sessions, timestamp, event, data JSON)
+messages_fts(content)  -- índice de texto completo
+```
+
+### `agent/context.py`: contexto en sesiones largas
+`select_context` envía al modelo solo los mensajes más recientes (`DUI_MAX_HISTORY`, 60
+por defecto, y un límite de caracteres), y siempre empieza en un mensaje del usuario,
+para no separar nunca una llamada a herramienta de su resultado (los proveedores
+rechazan esos historiales). En la base se conserva todo.
 
 ### `compat.py`
 Todo lo que depende del SO: `is_admin()` (Windows: `IsUserAnAdmin`; Unix:
@@ -78,7 +105,9 @@ por sistema.
 |---|---|
 | Confirmación pedida solo en el prompt | Impuesta por el Runner |
 | `execute_with_confirmation` nunca se llamaba (auditoría vacía) | Toda ejecución queda auditada |
-| Tres sistemas de sesión superpuestos | Uno solo (fase 3, SQLite) |
+| Tres sistemas de sesión superpuestos | Uno solo: SQLite con conversación + auditoría |
+| Al reanudar se perdían los resultados de herramientas | Se guarda y restaura el mensaje completo |
+| `/search` solo miraba el último mensaje | Búsqueda de texto completo (FTS5) |
 | Dependía de archivos internos de CAI | Sin dependencia de CAI |
 | `os.geteuid`, `which`, `/var/log`: solo Linux | Capa `compat` + herramientas multiplataforma |
 | `open()` sin encoding (falla en Windows) | UTF-8 explícito en todo |

@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-import uuid
-from datetime import datetime
 from pathlib import Path
 
 from rich.console import Console
@@ -23,23 +21,20 @@ from .agent.prompts import build_system_prompt
 from .compat import system_info
 from .config import Settings
 from .security import AuditLog, Scope, ScopeError
+from .storage import SessionNotFound, SessionStore, new_session_id
 from .tools import default_tools
 
 LOCAL_PROVIDERS = {"ollama", "ollama_chat", "lm_studio", "hosted_vllm", "llamafile"}
 
 
 def _fix_stdio_encoding() -> None:
-    """En Windows la salida redirigida usa cp1252 y rompe acentos y emojis."""
-    for stream in (sys.stdout, sys.stderr):
+    """En Windows la entrada/salida redirigida usa cp1252 y rompe acentos y emojis."""
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure") and (stream.encoding or "").lower() != "utf-8":
             try:
                 stream.reconfigure(encoding="utf-8", errors="replace")
             except (OSError, ValueError):
                 pass
-
-
-def new_session_id() -> str:
-    return f"{datetime.now():%Y%m%d_%H%M%S}_{uuid.uuid4().hex[:6]}"
 
 
 def build_context(settings: Settings) -> ToolContext:
@@ -111,7 +106,10 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument(
         "--scope", action="append", default=[], help="agrega un objetivo al alcance permitido"
     )
-    parser.add_argument("--data-dir", type=Path, help="carpeta para auditoría, reportes e historial")
+    parser.add_argument("--data-dir", type=Path, help="carpeta para sesiones, auditoría y reportes")
+    resume = parser.add_mutually_exclusive_group()
+    resume.add_argument("--resume", action="store_true", help="continúa la sesión más reciente")
+    resume.add_argument("--session", metavar="ID", help="continúa una sesión concreta (ID o parte del ID)")
     return parser.parse_args(argv)
 
 
@@ -138,9 +136,27 @@ def main(argv: list[str] | None = None) -> int:
 
     from .ui import Terminal
 
-    session_id = new_session_id()
-    audit = AuditLog(session_id, settings.audit_path / f"{session_id}.jsonl")
-    Terminal(build_agent(context), build_llm(settings), context, audit, console=console).run()
+    store = SessionStore(settings.db_path)
+    try:
+        resume = None
+        if args.session:
+            try:
+                resume = store.find(args.session)
+            except SessionNotFound as exc:
+                console.print(f"[red]{exc.args[0]}[/] Usa /sessions dentro de dui-IA para ver las sesiones.")
+                return 1
+        elif args.resume:
+            resume = store.latest()
+            if resume is None:
+                console.print("[yellow]No hay sesiones guardadas; se empieza una nueva.[/]")
+
+        audit = AuditLog(new_session_id(), store)
+        terminal = Terminal(
+            build_agent(context), build_llm(settings), context, audit, console=console, store=store
+        )
+        terminal.run(resume=resume)
+    finally:
+        store.close()
     return 0
 
 

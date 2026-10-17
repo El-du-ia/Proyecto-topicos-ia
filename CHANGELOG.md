@@ -2,6 +2,28 @@
 
 ## 2.0.0.dev0 (en desarrollo, rama `v2`)
 
+### Fase 3: sesiones persistentes
+
+**Agregado**
+- Sesiones en SQLite (`<datos>/dui.db`) con autoguardado atómico por turno. Se guarda
+  la conversación completa, incluidos los resultados de herramientas.
+- Comandos `/sessions`, `/resume`, `/load`, `/search`, `/history`, `/audit`, `/rename`,
+  `/export` (Markdown/JSON) y `/delete`, con alias en español.
+- `dui-ia --resume` y `dui-ia --session <ID>`; el banner ofrece retomar la última sesión.
+- Búsqueda de texto completo (FTS5) sin distinguir acentos ni mayúsculas.
+- Recorte de contexto en sesiones largas (`DUI_MAX_HISTORY`).
+- Reintentos automáticos ante errores pasajeros del proveedor (p. ej. 503 de Gemini) y
+  mensajes de error legibles cuando el proveedor responde en JSON.
+
+**Cambiado**
+- La auditoría pasa de archivos JSONL a la tabla `audit` de la misma base.
+- Las pruebas ya no leen el `.env` del desarrollador.
+
+**Corregido**
+- En Windows, la entrada redirigida (stdin) se leía como cp1252 y rompía los acentos.
+
+97 pruebas.
+
 ### Fases 0 y 1: base del proyecto y núcleo propio
 
 **Agregado**
@@ -29,5 +51,4 @@
 - El marcador de reporte de nmap no coincidía con el que esperaba el prompt.
 - Fallos en Windows: `os.geteuid`, `which`, `USER` y archivos sin UTF-8.
 
-**Pendiente**: herramientas activas (fase 2), sesiones con SQLite (fase 3) y mejoras de
-la terminal (fase 4). Ver [docs/PLAN_V2.md](docs/PLAN_V2.md).
+Ver el avance en [docs/PLAN_V2.md](docs/PLAN_V2.md).

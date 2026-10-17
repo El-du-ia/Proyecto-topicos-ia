@@ -61,6 +61,8 @@ uv run dui-ia --check
 uv run dui-ia                                   # usa el modelo de .env
 uv run dui-ia --model ollama_chat/llama3.1 --api-base http://localhost:11434
 uv run dui-ia --scope 203.0.113.0/24            # amplía el alcance para esta ejecución
+uv run dui-ia --resume                          # continúa la última sesión
+uv run dui-ia --session 47437b                  # continúa una sesión concreta (parte del ID)
 ```
 
 Ejemplos de preguntas:
@@ -77,10 +79,26 @@ Ejemplos de preguntas:
 | `/model [nombre]` | Ver o cambiar el modelo en caliente |
 | `/status` | Sistema, modelo, sesión y auditoría |
 | `/cost` | Tokens y costo estimado |
-| `/new` | Conversación nueva |
 | `/clear`, `/exit` | Limpiar pantalla, salir |
 
-También hay alias en español: `/ayuda`, `/herramientas`, `/alcance`, `/salir`, etc.
+**Sesiones**: cada turno se guarda automáticamente, incluidos los resultados de las
+herramientas, así que al reanudar el agente recuerda lo que encontró.
+
+| Comando | Qué hace |
+|---|---|
+| `/sessions` | Lista las sesiones guardadas |
+| `/resume` | Continúa la sesión más reciente |
+| `/load <#\|ID>` | Carga una sesión por su número en la lista o por parte del ID |
+| `/search <texto>` | Busca en todas las conversaciones (sin distinguir acentos ni mayúsculas) |
+| `/history` | Muestra la conversación actual |
+| `/audit` | Confirmaciones y ejecuciones registradas en esta sesión |
+| `/rename <título>` | Cambia el título (por defecto, la primera pregunta) |
+| `/export [json]` | Exporta la sesión a Markdown o JSON |
+| `/delete <#\|ID>` | Borra una sesión (pide confirmación) |
+| `/new` | Empieza una sesión nueva; la actual queda guardada |
+
+También hay alias en español: `/ayuda`, `/herramientas`, `/alcance`, `/sesiones`,
+`/continuar`, `/buscar`, `/exportar`, `/salir`, etc.
 
 ### Privilegios
 
@@ -129,8 +147,10 @@ locales y análisis de logs (Visor de eventos o journalctl) llegan en la fase 2.
 | Linux | `~/.local/share/dui-IA` |
 | macOS | `~/Library/Application Support/dui-IA` |
 
-Ahí están la auditoría (`audit/`), los reportes (`reports/`) y el historial de
-entrada. Se puede cambiar con `DUI_DATA_DIR`.
+Ahí están `dui.db` (SQLite con sesiones, mensajes y auditoría), los reportes
+(`reports/`), las exportaciones (`exports/`) y el historial de entrada. Se puede
+cambiar con `DUI_DATA_DIR`. La base se puede abrir con cualquier visor de SQLite
+(por ejemplo, [DB Browser for SQLite](https://sqlitebrowser.org)).
 
 ## Documentación
 

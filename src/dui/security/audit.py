@@ -1,40 +1,49 @@
 """
-Registro de auditoría: cada confirmación (aprobada o rechazada) y cada ejecución
-de herramienta queda guardada, una línea JSON por evento.
+Registro de auditoría: cada confirmación (aprobada o rechazada), bloqueo y
+ejecución de herramienta queda guardada en la base de datos de sesiones.
 """
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from ..storage import SessionStore
 
 
 class AuditLog:
-    def __init__(self, session_id: str, path: Path | None = None) -> None:
-        """Si path es None, el registro solo se guarda en memoria (útil para pruebas)."""
+    def __init__(self, session_id: str, store: SessionStore | None = None) -> None:
+        """Sin `store`, el registro solo vive en memoria (útil para pruebas)."""
         self.session_id = session_id
-        self.path = path
-        self.events: list[dict[str, Any]] = []
-        if path is not None:
-            path.parent.mkdir(parents=True, exist_ok=True)
+        self.store = store
+        self._events: list[dict[str, Any]] = []
+
+    def switch(self, session_id: str) -> None:
+        """Cambia a otra sesión (al cargar o crear una)."""
+        self.session_id = session_id
+        self._events = []
 
     def record(self, event: str, **data: Any) -> None:
-        entry = {
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
-            "session_id": self.session_id,
-            "event": event,
-            **data,
-        }
-        self.events.append(entry)
-        if self.path is not None:
-            with self.path.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
+        timestamp = datetime.now().isoformat(timespec="seconds")
+        if self.store is not None:
+            self.store.create(self.session_id)  # no hace nada si ya existe
+            self.store.record_audit(self.session_id, event, data, timestamp)
+        else:
+            self._events.append(
+                {"timestamp": timestamp, "session_id": self.session_id, "event": event, **data}
+            )
+
+    @property
+    def events(self) -> list[dict[str, Any]]:
+        if self.store is not None:
+            return self.store.audit_events(self.session_id)
+        return list(self._events)
 
     def summary(self) -> dict[str, Any]:
-        confirmations = [e for e in self.events if e["event"] == "confirmation"]
-        executions = [e for e in self.events if e["event"] == "tool_execution"]
+        events = self.events
+        confirmations = [e for e in events if e["event"] == "confirmation"]
+        executions = [e for e in events if e["event"] == "tool_execution"]
         return {
             "total_actions": len(executions),
             "approvals": sum(1 for e in confirmations if e.get("approved")),
