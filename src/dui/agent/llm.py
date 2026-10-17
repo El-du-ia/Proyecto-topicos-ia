@@ -10,7 +10,10 @@ formato de mensajes de OpenAI. Cambiar de modelo es cambiar un texto:
 
 from __future__ import annotations
 
+import json
 import os
+import re
+import time
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -72,11 +75,17 @@ class LiteLLMClient:
         api_base: str | None = None,
         temperature: float | None = None,
         timeout: float = 180,
+        retries: int = 3,
+        retry_delay: float = 2.0,
     ) -> None:
         self.model = model
         self.api_base = api_base
         self.temperature = temperature
         self.timeout = timeout
+        # Reintentos con espera creciente (2 s, 4 s, 8 s) ante errores pasajeros del proveedor.
+        self.retries = retries
+        self.retry_delay = retry_delay
+        self._sleep = time.sleep
 
     @staticmethod
     def _litellm() -> Any:
@@ -102,10 +111,17 @@ class LiteLLMClient:
         if self.temperature is not None:
             kwargs["temperature"] = self.temperature
 
-        try:
-            response = litellm.completion(**kwargs)
-        except Exception as exc:
-            raise LLMError(_friendly_error(self.model, exc)) from exc
+        attempt = 0
+        while True:
+            try:
+                response = litellm.completion(**kwargs)
+                break
+            except Exception as exc:
+                if attempt < self.retries and _is_transient(exc):
+                    self._sleep(self.retry_delay * 2**attempt)
+                    attempt += 1
+                    continue
+                raise LLMError(_friendly_error(self.model, exc)) from exc
 
         message = response.choices[0].message
         tool_calls = [
@@ -127,9 +143,33 @@ class LiteLLMClient:
         return LLMResponse(content=message.content, tool_calls=tool_calls, usage=usage)
 
 
+_TRANSIENT_ERRORS = {"ServiceUnavailableError", "RateLimitError", "InternalServerError", "Timeout"}
+
+
+def _is_transient(exc: Exception) -> bool:
+    """Errores que suelen resolverse solos (saturación del proveedor, cortes breves)."""
+    name = type(exc).__name__
+    if name == "APIConnectionError":
+        return "api key" not in str(exc).lower()  # falta de API key: reintentar no sirve
+    return name in _TRANSIENT_ERRORS
+
+
+def _error_text(exc: Exception) -> str:
+    """Extrae el mensaje legible, aunque el proveedor lo devuelva como JSON en varias líneas."""
+    raw = str(exc)
+    match = re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)"', raw)
+    if match:
+        try:
+            return str(json.loads(f'"{match.group(1)}"'))[:300]
+        except ValueError:
+            return match.group(1)[:300]
+    first = next((line.strip() for line in raw.splitlines() if line.strip()), type(exc).__name__)
+    return first[:300]
+
+
 def _friendly_error(model: str, exc: Exception) -> str:
     name = type(exc).__name__
-    text = str(exc).splitlines()[0][:300] if str(exc) else name
+    text = _error_text(exc)
     provider = model.split("/", 1)[0]
     hints = {
         "AuthenticationError": f"Revisa la API key de '{provider}' en tu archivo .env.",
@@ -137,6 +177,9 @@ def _friendly_error(model: str, exc: Exception) -> str:
         "¿está corriendo el servidor (por ejemplo 'ollama serve')?",
         "NotFoundError": f"El modelo '{model}' no existe o no está disponible para tu cuenta.",
         "RateLimitError": "Se alcanzó el límite de uso del proveedor. Espera un momento.",
+        "ServiceUnavailableError": "El proveedor está saturado (ya se reintentó varias veces). "
+        "Prueba en unos minutos o cambia de modelo con /model.",
+        "InternalServerError": "Error interno del proveedor. Prueba de nuevo en un momento.",
         "BadRequestError": "El proveedor rechazó la petición. Algunos modelos locales no "
         "soportan herramientas (function calling); prueba con otro modelo.",
         "Timeout": "El modelo tardó demasiado en responder.",
